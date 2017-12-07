@@ -1,0 +1,32 @@
+{
+  "name": "deeplearn-example",
+  "version": "0.0.1",
+  "description": "Starter project for using deeplearn.js with TypeScript",
+  "dependencies": {
+    "deeplearn": "~0.3.3",
+    "deeplearn-graph-serializer": "^0.3.1",
+    "gl": "^4.0.4",
+    "isomorphic-fetch": "^2.2.1",
+    "lodash": "^4.17.4",
+    "sentiment": "^4.1.0"
+  },
+  "devDependencies": {
+    "express": "^4.16.2",
+    "mkdirp": "~0.5.1",
+    "tsify": "~3.0.3",
+    "tslint": "~5.8.0",
+    "typescript": "~2.6.1",
+    "uglifyjs": "~2.4.11",
+    "watchify": "~3.9.0"
+  },
+  "scripts": {
+    "prep": "yarn && mkdirp dist",
+    "package": "tsc -d",
+    "watch": "watchify src/main.ts -p [tsify] -v --debug -o dist/bundle.js",
+    "build": "browserify src/main.ts -p [tsify] -o dist/bundle.js",
+    "lint": "tslint -p . -t verbose",
+    "deploy": "yarn build && uglifyjs dist/bundle.js -c -m -o dist/bundle.min.js",
+    "dev": "node --harmony server"
+  },
+  "license": "Apache-2.0"
+}
