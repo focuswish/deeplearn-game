@@ -13,38 +13,10 @@ import {
 import { sum, last, sample, shuffle } from 'lodash'
 import * as serialize from 'deeplearn-graph-serializer'
 import * as fetch from 'isomorphic-fetch'
-import * as sentiment from 'sentiment'
-import words from './words'
+import Momentum from './momentum'
+import Triangle from './triangle'
+import Draw from './draw'
 
-let items = words.filter(w => 
-  sentiment(w).score && (sentiment(w).score >= 1 || sentiment(w).score <= -1)
-)
-
-items = items.concat(items)
-items = items.concat(items)
-items = items.concat(items)
-items = items.concat(items)
-
-items = shuffle(items)
-
-function prepareText(text) { 
-  let values = text.split('').slice(0, 12).map(l => l.charCodeAt(0) / 255)
-  let empty = new Array(12 - values.length)
-  empty.fill(0)
-  return values.concat(empty)
-}
-
-function normalizeSentiment(word) {
-  return sentiment(word).positive.length > 0 ? 1 : 0
-}
-
-let randomBool = (n = 3) => {
-  let arr = new Array(n)
-  arr.fill(n)
-  return arr.map(() => Math.floor(Math.random() * 2))
-}
-
-let expected = input => sum(input) >= 2 ? 1 : 0
 
 function createFullyConnectedLayer(
   graph,
@@ -108,12 +80,12 @@ function loadGraph() {
   } 
   
   let g = new Graph()
-  let inputTensor = g.placeholder('input', [12])
+  let inputTensor = g.placeholder('input', [4])
   let targetTensor = g.placeholder('output', [1])
   let predictionTensor = createFullyConnectedLayer(
     g,
     createLayers(g, inputTensor),
-    12,
+    4,
     1
   );
 
@@ -131,22 +103,11 @@ function Base() {
   ctx.batchSize = 100;
   ctx.initialLearningRate = 0.1;
   ctx.optimizer = new SGDOptimizer(ctx.initialLearningRate)
-  ctx.STOPPED = false;
 
-  ctx.init = () => {
-    // const net = serialize.jsonToGraph(data)
-    // const { graph, placeholders, variables, tensors } = net
-
-    //ctx.graph = net.graph;
+  ctx.init = () => {    
     const model = loadGraph()
 
     ctx = { ...ctx, ...model }
-    
-    // This tensor contains the input. In this case, it is a scalar.
-    // ctx.inputTensor = ctx.graph.placeholder('input', [3]);
-  
-    // This tensor contains the target.
-    // ctx.targetTensor = ctx.graph.placeholder('output', [1]);
   
     ctx.costTensor = ctx.graph.meanSquaredCost(
       ctx.targetTensor,
@@ -158,30 +119,18 @@ function Base() {
     return ctx;
   }
 
-  ctx.createTrainingData = () => {
+  ctx.createTrainingData = () => {    
     ctx.math.scope(() => {
-
-      let template = {
-        sleep: 1,
-        exercise: 1,
-        diet: 1
-      }
-
       let inputArray = []
       let targetArray = []
-      let size = items.length
-
+      let size = 100000
+      
       for(let i = 0; i < size; i++) {
-        //let input = randomBool()
-        //let n = expected(input)
-        let word = sample(items)
+        let t = Triangle().generate().calc()
+        let {_x1, _y1, _x2, _y2, _theta} = t;
 
-        
-        let input = prepareText(word)
-        let n = normalizeSentiment(word)
-
-        inputArray.push(Array1D.new(input))
-        targetArray.push(Array1D.new([n]))
+        inputArray.push(Array1D.new([_x1, _y1, _x2, _y2]))
+        targetArray.push(Array1D.new([_theta]))
       }
     
       const shuffledInputProviderBuilder = new InCPUMemoryShuffledInputProviderBuilder(
@@ -204,7 +153,8 @@ function Base() {
   }
 
   ctx.trainBatch = (shouldFetchCost) => {
-    let adjustedLearningRate = ctx.initialLearningRate * Math.pow(0.85, Math.floor(step / 100))
+    let decay = Math.pow(0.85, Math.floor(step / 42))
+    let adjustedLearningRate = ctx.initialLearningRate * decay
   
     ctx.optimizer.setLearningRate(
       adjustedLearningRate
@@ -220,13 +170,12 @@ function Base() {
         ctx.optimizer,
         shouldFetchCost ? CostReduction.MEAN : CostReduction.NONE
       );
+      
       if (!shouldFetchCost) {
         // We only train. We do not compute the cost.
-        return;
+        return
       }
-
-      // Compute the cost (by calling get), which requires transferring data
-      // from the GPU.
+      
       costValue = cost.get();
     })
 
@@ -255,32 +204,15 @@ function Base() {
 
   let step : any = window.localStorage.getItem('step') || 0;
 
-  ctx.denormalize = () => {}
-
   ctx.save = () => {
     const graphJson = serialize.graphToJson(ctx.graph)
     let body = JSON.stringify(graphJson)
     window.localStorage.setItem('data', body)
-    //fetch('/save', {
-    //  method: 'POST',
-    //  headers: {
-    //    'Content-Type': 'application/json'
-    //  },
-    //  body,
-    //})
   }
 
   ctx.train = () => {
-    //if (step > 1000) {
-    //  
-    //}
+    //requestAnimationFrame(ctx.train);
 
-    if(ctx.STOPPED) return
-    // Schedule the next batch to be trained.
-    requestAnimationFrame(ctx.train);
-  
-    // We only fetch the cost every 5 steps because doing so requires a transfer
-    // of data from the GPU.
     const localStepsToRun = 5;
     let cost;
 
@@ -289,64 +221,35 @@ function Base() {
       step++;
     }
 
-    // Print data to console so the user can inspect.
-    //let input = randomBool()
-    //let actual = expected(input)
-  
-    let w = sample(items)
-    let input = prepareText(w)
-    let actual = normalizeSentiment(w)
-    let predicted = ctx.predict(input);
+    let t = Triangle().generate().calc()
+    let {x1, y1, x2, y2, theta} = t;
+    let predicted = ctx.predict([x1, y1, x2, y2]);
+    
+    console.log(t)
+    console.log('predicted', predicted)
 
-    //let color1 = actual === 0 ? 'red' : 'green'
-    //let color2 = predicted <= 0.5 ? 'red' : 'green'
-    let result = actual === Math.round(predicted) ? 'pass' : 'fail'
-    //console.log(`--- step ${step - 1} ---`)
-    //console.log('input', input)
-    //console.log('expected', actual)
-    //console.log('predicted', predicted)
-
-    let el = document.querySelector('#content')
-    el.innerHTML += `<div class="tile ${result}" data-predicted="${predicted}" data-input="${input}" data-expected="${actual}">${Math.round(predicted * 100)}<br />${w}</div>`
-    //el.innerHTML += `--- STEP ${step - 1} ---<br />`;
-    //el.innerHTML += `input: <span style="color: ${color1};">${input}</span><br />`;
-    //el.innerHTML += `predicted: <span style="color: ${color2};">${predicted}</span><br /><br />`;
-
-    if(predicted !== 0) {
-      ctx.save()
-      window.localStorage.setItem('step', step)
-    } else {
-      //
-    }
+    //if(predicted !== 0) {
+    //  ctx.save()
+    //  window.localStorage.setItem('step', step)
+    //}
   
     return ctx
-  }
-
-  ctx.start = () => {
-    ctx.STOPPED = false;
-    return ctx;
-  }
-
-  ctx.stop = () => {
-    ctx.STOPPED = true;
-    return ctx;
   }
 
   return ctx;
 }
 
 declare global {
-  interface Window { ML: any; }
+  interface Window { ML: any; Momentum: any; Triangle : any; Draw: any; }
 }
 
 window.ML = function() {
-  const run = () => {
-    let base = Base()
-    base = base.init()
-    base = base.createTrainingData()
-    base = base.train()
-    return base;
-  }
-
-  return { run }
+  let base = Base()
+  base = base.init()
+  base = base.createTrainingData()
+  return base;
 }
+
+window.Momentum = Momentum;
+window.Triangle = Triangle;
+window.Draw = Draw;
