@@ -49,12 +49,9 @@ function Terrain () {
 function Stone() {
   let stone : any = {}
 
-  let geometry = new THREE.BoxGeometry( 0.1, 0.1, 0.1 );
-
-  //stone.mesh = new THREE.Mesh(geometry, material);
-  //https://github.com/mrdoob/three.js/blob/master/examples/textures/minecraft/grass.png?raw=true
+  let geometry = new THREE.BoxGeometry( 0.2, 0.2, 0.2 );
   
-  let texture = new THREE.TextureLoader().load('stone.png');
+  let texture = new THREE.TextureLoader().load('https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/stone.jpg');
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   stone.mesh = new THREE.Mesh(
@@ -149,6 +146,10 @@ function World() {
   cube()
   generateTrees()
 
+  let stone1 = Stone()
+  stone1.mesh.position.set(...randomPositionOnTerrain())
+  ctx.scene.add(stone1.mesh)
+  
   let sphere = new THREE.SphereGeometry();
   let object = new THREE.Mesh( sphere, new THREE.MeshBasicMaterial( 0xff0000 ) );
   let box = new THREE.BoxHelper( object, 0xffff00 );
