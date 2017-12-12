@@ -8,24 +8,34 @@ import Tree from './tree';
 import { sample, findIndex } from 'lodash'
 
 const assets = {
-  ground: 'https://static.planetminecraft.com/files/resource_media/screenshot/1236/pack_3530346_thumb.jpg',
+  ground: 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/minecraft.jpg',
   stone: 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/stone.jpg'
 }
 
 function Terrain () {
   let terrain : any = {}
   
-  let texture = new THREE.TextureLoader().load(assets.ground); 
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(64 * 4, 64 * 4);
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.LinearMipMapLinearFilter;
+  //let texture = new THREE.TextureLoader().load(assets.ground); 
+  //texture.wrapS = THREE.RepeatWrapping;
+  //texture.wrapT = THREE.RepeatWrapping;
+  //texture.repeat.set(64, 64);
+  //texture.magFilter = THREE.NearestFilter;
+  //texture.minFilter = THREE.LinearMipMapLinearFilter;
   
-  terrain.material = new THREE.MeshLambertMaterial({ 
-    map: texture, 
-    vertexColors: THREE.VertexColors 
-  }) 
+  //terrain.material = new THREE.MeshLambertMaterial({ 
+    //map: texture, 
+  //  vertexColors: THREE.VertexColors 
+  //}) 
+  let sand = new THREE.Color(0xE1A95F)
+  let dirt = new THREE.Color(0xD2B48C)
+  let colorArray = sand.toArray()
+
+  terrain.material = new THREE.MeshStandardMaterial ({
+    color: 0xE1A95F,    
+    flatShading: true,
+    metalness: 0,
+    vertexColors: THREE.FaceColors
+  })
 
   let matrix = [10, 10, 64, 64]
   let rows = matrix[2]
@@ -38,10 +48,15 @@ function Terrain () {
 
   for (let i = 0; i <= rows; i++) { 
     for (let j = 0; j <= columns; j++) { 
-      terrain.geometry.vertices[index].setZ(altitude[j][i])
+      terrain.geometry.vertices[index].setZ(altitude[j][i])      
       index++;
     }
   }
+
+  terrain.geometry.faces.forEach((face, i) => {
+    let shade = sand.lerp(dirt, Math.random() * 0.1)
+    terrain.geometry.faces[i].color.copy(shade)
+  })
 
   terrain.mesh = new THREE.Mesh(
     terrain.geometry, 
@@ -90,7 +105,7 @@ function World() {
   document.body.appendChild(ctx.renderer.domElement);
 
   ctx.zoom = 2;
-  ctx.tilt = 1;
+  ctx.tilt = 2;
   ctx.camera.position.x = 0;
   ctx.camera.position.y = 0;
   ctx.camera.position.z = ctx.zoom
@@ -121,7 +136,7 @@ function World() {
   function light() {
     let light = new THREE.HemisphereLight(0xfffafa,0x000000, .9)
     let sun = new THREE.DirectionalLight( 0xcdc1c5, 0.9);
-    sun.position.set(-15, -15, 20)
+    sun.position.set(-10, -10, 10)
     sun.castShadow = true;
 
     ctx.scene.add(light)
@@ -142,9 +157,8 @@ function World() {
       ctx.scene.add(tree)
     }
   }
-
-  ctx.scene.background = new THREE.Color(0xfafafa)
-  ctx.scene.fog = new THREE.FogExp2(0xefd1b5, 0.00025 * 2)
+  ctx.scene.background = new THREE.Color(0x00bfff)
+  ctx.scene.fog = new THREE.FogExp2(0xefd1b5, 0.001)
   ctx.terrain = Terrain()
   ctx.scene.add(ctx.terrain.mesh)
 
@@ -165,13 +179,7 @@ function World() {
     stone3.mesh.position.set(p.x, p.y, p.z + 0.2)
     ctx.scene.add(stone1.mesh)
   }
-  
 
-  let sphere = new THREE.SphereGeometry();
-  let object = new THREE.Mesh( sphere, new THREE.MeshBasicMaterial( 0xff0000 ) );
-  let box = new THREE.BoxHelper( object, 0xffff00 );
-  box.position.set(1, 1, 1)
-  ctx.scene.add(box);
 
   function onWindowResize() {
     ctx.camera.aspect = window.innerWidth / window.innerHeight;
