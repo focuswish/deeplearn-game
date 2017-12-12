@@ -16,7 +16,8 @@ import * as fetch from 'isomorphic-fetch'
 import Momentum from './momentum'
 import Triangle from './triangle'
 import Draw from './draw'
-
+import Sprite from './Sprite'
+import * as Three from 'three'
 
 function createFullyConnectedLayer(
   graph,
@@ -240,7 +241,14 @@ function Base() {
 }
 
 declare global {
-  interface Window { ML: any; Momentum: any; Triangle : any; Draw: any; }
+  interface Window { 
+    ML: any; 
+    Momentum: any; 
+    Triangle : any; 
+    Draw: any; 
+    Sprite: any;
+    THREE: any;
+  }
 }
 
 window.ML = function() {
@@ -250,6 +258,8 @@ window.ML = function() {
   return base;
 }
 
+window.THREE = Three;
 window.Momentum = Momentum;
 window.Triangle = Triangle;
 window.Draw = Draw;
+window.Sprite = Sprite;

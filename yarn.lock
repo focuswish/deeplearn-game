@@ -914,6 +914,10 @@ forwarded@~0.1.2:
   version "0.1.2"
   resolved "https://registry.yarnpkg.com/forwarded/-/forwarded-0.1.2.tgz#98c23dab1175657b8c0573e8ceccd91b0ff18c84"
 
+fractal-terrain-generator@^0.0.2:
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/fractal-terrain-generator/-/fractal-terrain-generator-0.0.2.tgz#f78d15bcf8f6cb1aa5a5ad3551b10bce70c08636"
+
 fresh@0.5.2:
   version "0.5.2"
   resolved "https://registry.yarnpkg.com/fresh/-/fresh-0.5.2.tgz#3d8cadd90d976569fa835ab1f8e4b23a105605a7"
@@ -1154,6 +1158,10 @@ iconv-lite@0.4.19, iconv-lite@~0.4.13:
 ieee754@^1.1.4:
   version "1.1.8"
   resolved "https://registry.yarnpkg.com/ieee754/-/ieee754-1.1.8.tgz#be33d40ac10ef1926701f6f08a2d86fbfd1ad3e4"
+
+improved-noise@^0.0.3:
+  version "0.0.3"
+  resolved "https://registry.yarnpkg.com/improved-noise/-/improved-noise-0.0.3.tgz#b7f5c36789ea3e88f5f8734a3d50ed0efabb7ccd"
 
 indexof@0.0.1:
   version "0.0.1"
@@ -2247,6 +2255,14 @@ tar@^2.0.0, tar@^2.2.1:
     block-stream "*"
     fstream "^1.0.2"
     inherits "2"
+
+three-trackballcontrols@^0.0.7:
+  version "0.0.7"
+  resolved "https://registry.yarnpkg.com/three-trackballcontrols/-/three-trackballcontrols-0.0.7.tgz#42cae1f6856d5f889eaae3a0e2fca9d214793e91"
+
+three@^0.88.0:
+  version "0.88.0"
+  resolved "https://registry.yarnpkg.com/three/-/three-0.88.0.tgz#4256c2fc38e4fb23a0d23eba2b6cce4df8e466d5"
 
 through2@^0.6.3:
   version "0.6.5"

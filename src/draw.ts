@@ -1,9 +1,7 @@
-function Draw() {
-  const draw : any = {}
-  draw.canvas = document.getElementById('canvas');
-  draw.context = draw.canvas.getContext('2d')
-  draw.canvas.width = window.innerWidth;
-  draw.canvas.height = window.innerHeight;
+function Draw(params = {}) {
+  const draw : any = {
+    ...params
+  }
 
   draw.clear = () => {
     if(draw.canvas.getContext) {
@@ -32,16 +30,43 @@ function Draw() {
     return draw;
   }
 
-  draw.circle = (pos) => {
+  draw.circle = (pos, radius = 5) => {
     if(draw.canvas.getContext) {
       let [x, y] = pos;
   
       //ctx.arc(x, y, radius, startAngle, endAngle, anticlockwise);
       
       draw.context.beginPath();
-      draw.context.arc(x, y, 5, 0, Math.PI * 2); 
-      draw.context.stroke();
+      draw.context.arc(x, y, radius, 0, Math.PI * 2); 
+      //draw.context.stroke();
+      draw.context.fill()
     }
+    return draw;
+  }
+
+  draw.ellipse = (pos = [0, 0], radius = [15, 10]) => {
+
+    let [x, y] = pos;
+    let [radiusX, radiusY] = radius;
+    let rotation = 0;
+    let startAngle = 0;
+    let endAngle = 2 * Math.PI;
+    let anticlockwise = false;
+    
+    draw.context.beginPath()   
+    draw.context.ellipse(
+      x, 
+      y, 
+      radiusX, 
+      radiusY, 
+      rotation, 
+      startAngle, 
+      endAngle, 
+      anticlockwise
+    )
+
+    draw.context.fill()
+
     return draw;
   }
 

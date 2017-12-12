@@ -1,6 +1,8 @@
 
 import Triangle from './triangle'
 import Draw from './draw'
+import Sprite from './sprite'
+import { bindTextureToProgramUniformSampler } from 'deeplearn/dist/math/backends/webgl/webgl_util';
 
 let { toRad } = Triangle()
 
@@ -12,26 +14,23 @@ const brown = 'rgba(47, 45, 46, 1)'
 
 function Momentum(params = {}) {
   const ctx : any = {
-    friction: 0.99,
+    frictionCoefficient: 0.95,
+    body: {
+      velocity: [0, 0],
+      position: [200, 200], 
+      forces: [],
+      isColliding: false,
+    },
     ...params
   }
-
+  
+  ctx.draw = Draw(params)
   ctx.root = document.getElementById('overlay')
   ctx.bodies = []
 
   const generateId = () => '_' + Math.random().toString(36).substr(2, 9);
   
-  ctx.getPosition = () => [
-    ctx.element.getBoundingClientRect().left,
-    ctx.element.getBoundingClientRect().top,
-  ]
-
-  ctx.getCenter = () => [
-    ctx.element.getBoundingClientRect().left + (ctx.body.width/2),
-    ctx.element.getBoundingClientRect().top + (ctx.body.height/2),
-  ]
-
-  ctx.last = (arr) => arr.slice(-1)[0] 
+  ctx.getPosition = () => ctx.body.position;
 
   ctx.watch = () => {
     if(ctx.body.isColliding) return
@@ -107,45 +106,54 @@ function Momentum(params = {}) {
   }
 
   ctx.register = (force = 1, theta = Math.random() * 2 * Math.PI) => {
+    //console.log('register',[force, theta])
     ctx.body.forces.push([force, theta])
+
     return ctx;
   }
 
+  ctx.friction = (fr) => {
+    ctx.frictionCoefficient = fr;
+
+    return ctx;
+  }
+
+  ctx.clear = () => {
+    ctx.body.forces = []
+    return ctx;
+  }
+
+  ctx.getPosition = () => ctx.sprite.position
+
   ctx.apply = () => {
-    let { element } = ctx;
-    let forceApplied = false;
-    
     ctx.frame = 0
 
     let step = (timestamp) => {
       let {
         forces
-      } = ctx.body;
-      
-      
+      } = ctx.body;      
       let [x1, y1] = ctx.getPosition() 
       ctx.body.position = [x1, y1]
-      //Draw().circle(ctx.getCenter())
-      //let {coeff, theta} = ctx.bounce(force, angle)
 
       if(ctx.frame === 0) {
-        ctx.draw = ctx.draw.clear()
-        let [dx, dy] = ctx.resolveForces()
-        ctx.drawForceDiagram(dx, dy, orange)
+        //ctx.draw = ctx.draw.clear()
+        //let [dx, dy] = ctx.resolveForces()
+        //ctx.drawForceDiagram(dx, dy, orange)
 
       } else {
         ctx.body.forces = forces.map(force => [
-          force[0] * ctx.friction,
+          force[0] * ctx.frictionCoefficient,
           force[1]
-        ]).filter(force => Math.abs(force[0]) > 0.1)
+        ]).filter(force => Math.abs(force[0]) > 0.05)
       }
       
       if(ctx.body.forces.length > 0) {
         ctx.frame++
         requestAnimationFrame(step)
-        
+        console.log(ctx)
         ctx.setPosition()
       } else {
+        ctx.frameRate = ctx.frame;
         ctx.frame = 0;
       }
     }
@@ -153,6 +161,15 @@ function Momentum(params = {}) {
     requestAnimationFrame(step)
 
     return ctx
+  }
+
+  ctx.clamp = () => {
+    let frame = ctx.frame;
+    let frameRate = 5;
+    let rowsPerSpriteSheet = 8;
+
+    let remainder = Math.round(frame/frameRate) % rowsPerSpriteSheet
+    return remainder;
   }
 
   ctx.setPosition = () => {
@@ -167,69 +184,18 @@ function Momentum(params = {}) {
     let x = ctx.body.position[0] + vx;
     let y = ctx.body.position[1] + vy;
     
-    ctx.element.style.transform = `translate(${x}px, ${y}px)` 
-  }
-
-  ctx.tick = () => {
-    setTimeout(function() {
-      if(ctx.draw) ctx.draw = ctx.draw.clear()
-      ctx.tick()
-    }, 5000)
+    ctx.body.position = [x, y]   
+    ctx.sprite.sheet[0] = ctx.clamp() 
+    ctx.sprite.draw([x, y])
   }
 
   ctx.registerBody = (elem) => {
-    let rect = elem.getBoundingClientRect();
-    let {top, left, width, height} = rect;
-    let id = elem.id;
-    ctx.bodies.push({top, left, width, height, id})
+    //let rect = elem.getBoundingClientRect();
+    //let {top, left, width, height} = rect;
+    //let id = elem.id;
+    //ctx.bodies.push({top, left, width, height, id})
 
     return ctx
-  }
-
-  ctx.create = (params : any = {}) => {
-
-    if(Array.isArray(params)) {
-      params.forEach(param => ctx.create(param))
-      return ctx;
-    }
-
-    let {
-      position = [0, 0],
-      id = generateId(),
-      size = 10,
-      isAlive = false
-    } = params
-
-    let elem = document.createElement('div')
-    elem.id = id;
-    elem.style.transform = `translate(${position[0]}px, ${position[1]}px)`
-    elem.style.position = 'absolute'
-    elem.style.width = `${size}px`
-    elem.style.height = `${size}px`
-
-    if(isAlive) {
-      elem.style.backgroundImage = 'linear-gradient(19deg, #21D4FD 0%, #B721FF 100%)'
-    } else {
-      elem.style.backgroundColor = '#000'
-    }
-    
-    ctx.body = {
-      velocity: [],
-      position: [], 
-      forces: [],
-      width: size,
-      height: size,
-      isColliding: false
-    }  
-
-    ctx.root.appendChild(elem)
-    if(isAlive) {
-      ctx.element = elem;
-    } else {
-      ctx.registerBody(elem)
-    }
-
-    return ctx;
   }
 
   ctx.random = () => {
@@ -237,10 +203,6 @@ function Momentum(params = {}) {
     let theta = randomTheta()
 
     const registerForce = () => {
-      //let force = 5;
-      //theta = randomTheta()
-      //theta += (Math.random() * 0.2)
-      //console.log('registering force:', [force, theta])
       ctx.register()
     }
 

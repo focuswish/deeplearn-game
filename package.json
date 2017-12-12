@@ -5,10 +5,14 @@
   "dependencies": {
     "deeplearn": "~0.3.3",
     "deeplearn-graph-serializer": "^0.3.1",
+    "fractal-terrain-generator": "^0.0.2",
     "gl": "^4.0.4",
+    "improved-noise": "^0.0.3",
     "isomorphic-fetch": "^2.2.1",
     "lodash": "^4.17.4",
-    "sentiment": "^4.1.0"
+    "sentiment": "^4.1.0",
+    "three": "^0.88.0",
+    "three-trackballcontrols": "^0.0.7"
   },
   "devDependencies": {
     "browserify": "^14.5.0",
@@ -23,8 +27,8 @@
   "scripts": {
     "prep": "yarn && mkdirp dist",
     "package": "tsc -d",
-    "watch": "watchify src/main.ts -p [tsify] -v --debug -o dist/bundle.js",
-    "build": "browserify src/main.ts -p [tsify] -o dist/bundle.js",
+    "watch": "watchify src/terrain.ts -p [tsify] -v --debug -o dist/bundle.js",
+    "build": "browserify src/terrain.ts -p [tsify] -o dist/bundle.js",
     "lint": "tslint -p . -t verbose",
     "deploy": "yarn build && uglifyjs dist/bundle.js -c -m -o dist/bundle.min.js",
     "dev": "node --harmony server"
