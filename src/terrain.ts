@@ -7,18 +7,22 @@ import Sprite from './sprite'
 import Tree from './tree';
 import { sample, findIndex } from 'lodash'
 
+const assets = {
+  ground: 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/ground.jpg',
+  stone: 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/stone.jpg'
+}
 
 function Terrain () {
   let terrain : any = {}
-
-  //terrain.material = new THREE.MeshNormalMaterial({
-  //  color: 0xccffcc, 
-  //  flatShading: true
-  //})
-  terrain.material = new THREE.MeshStandardMaterial({
-    color: 0xece2c6,
-    flatShading: true
-  });
+  
+  let texture = new THREE.TextureLoader().load(assets.ground); 
+  texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.LinearMipMapLinearFilter;
+  
+  terrain.material = new THREE.MeshLambertMaterial({ 
+    map: texture, 
+    vertexColors: THREE.VertexColors 
+  }) 
 
   let matrix = [10, 10, 64, 64]
   let rows = matrix[2]
@@ -51,7 +55,7 @@ function Stone() {
 
   let geometry = new THREE.BoxGeometry( 0.2, 0.2, 0.2 );
   
-  let texture = new THREE.TextureLoader().load('https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/stone.jpg');
+  let texture = new THREE.TextureLoader().load(assets.stone);
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   stone.mesh = new THREE.Mesh(
@@ -146,10 +150,20 @@ function World() {
   cube()
   generateTrees()
 
-  let stone1 = Stone()
-  stone1.mesh.position.set(...randomPositionOnTerrain())
-  ctx.scene.add(stone1.mesh)
+  for(let i = 0; i < 10; i++) {
+    let stone1 = Stone()
+    let stone2 = Stone()
+    let stone3 = Stone()
+
+    stone1.mesh.position.set(...randomPositionOnTerrain())
+    let p = stone1.mesh.position;
+
+    stone2.mesh.position.set(p.x + 0.2, p.y, p.z)
+    stone3.mesh.position.set(p.x, p.y, p.z + 0.2)
+    ctx.scene.add(stone1.mesh)
+  }
   
+
   let sphere = new THREE.SphereGeometry();
   let object = new THREE.Mesh( sphere, new THREE.MeshBasicMaterial( 0xff0000 ) );
   let box = new THREE.BoxHelper( object, 0xffff00 );
