@@ -8,7 +8,7 @@ import Tree from './tree';
 import { sample, findIndex } from 'lodash'
 
 const assets = {
-  ground: 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/ground.jpg',
+  ground: 'https://static.planetminecraft.com/files/resource_media/screenshot/1236/pack_3530346_thumb.jpg',
   stone: 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/stone.jpg'
 }
 
@@ -16,6 +16,9 @@ function Terrain () {
   let terrain : any = {}
   
   let texture = new THREE.TextureLoader().load(assets.ground); 
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(64 * 4, 64 * 4);
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   
