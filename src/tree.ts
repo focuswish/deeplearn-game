@@ -82,7 +82,6 @@ function Tree() {
     let midPointVector = new THREE.Vector3();
     let vertexVector = new THREE.Vector3();
     ctx.geometry = new THREE.ConeGeometry(0.5, 1, ctx.sides, ctx.tiers);
-    console.log(ctx)
     ctx.material = new THREE.MeshStandardMaterial({
       color: 0x33ff33,
       flatShading: true

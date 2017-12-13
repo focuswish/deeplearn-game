@@ -5,7 +5,7 @@ import * as TrackballControls from 'three-trackballcontrols'
 import * as fractal from 'fractal-terrain-generator'
 import Sprite from './sprite'
 import Tree from './tree';
-import { sample, findIndex } from 'lodash'
+import { sample, findIndex, flatten, chunk, take, tail} from 'lodash'
 
 const assets = {
   ground: 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/minecraft.jpg',
@@ -13,13 +13,66 @@ const assets = {
   sky: 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/galaxy.jpg'
 }
 
-function Terrain () {
-  let terrain : any = {}
+const BASE_ASSET_URL = 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/'
+
+function segment(matrix, vertices) {  
+  let n = Math.sqrt(vertices.length)
+
+  let offset = (n - 10) / 10;
+  let [x, y] = matrix;
   
-  //let texture = new THREE.TextureLoader().load(assets.ground); 
-  //texture.wrapS = THREE.RepeatWrapping;
-  //texture.wrapT = THREE.RepeatWrapping;
-  //texture.repeat.set(64, 64);
+  x *= offset;
+  y *= offset;
+
+  let rows = chunk(vertices, n)
+
+  let out = flatten(
+    rows
+    .slice(x, x + offset)
+    .map(row => row.slice(y, y + offset))
+  )
+
+  return out
+}
+
+function segmentTopography(topography, matrix) {
+  let offset = Math.sqrt(topography.length - 1) // 10
+
+  let [x, y] = matrix;
+  x *= offset;
+  y *= offset;
+  
+  offset += 1;
+  let out = flatten(
+    topography
+    .slice(y, y + offset)
+    .reverse()
+    .map(row => row.slice(x, x + offset))
+  )
+
+  return out;
+}
+
+
+function Terrain (params = {}) {
+  let terrain : any = {
+    color: 0xE1A95F, 
+    asset: null, 
+    flat: false,
+    position: [0, 0, 0],
+    altitude: null,
+    ...params
+  }
+  
+  let texture;
+
+  if(terrain.asset) {
+    texture = new THREE.TextureLoader().load(BASE_ASSET_URL + terrain.asset); 
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(64, 64);
+  }
+
   //texture.magFilter = THREE.NearestFilter;
   //texture.minFilter = THREE.LinearMipMapLinearFilter;
   
@@ -31,26 +84,29 @@ function Terrain () {
   let dirt = new THREE.Color(0xD2B48C)
   let colorArray = sand.toArray()
 
-  terrain.material = new THREE.MeshStandardMaterial ({
-    color: 0xE1A95F,    
+  let material = new THREE.MeshStandardMaterial ({
+    color: terrain.color,    
     flatShading: true,
     metalness: 0,
-    vertexColors: THREE.FaceColors
+    vertexColors: THREE.FaceColors,
+    map: texture ? texture : null
   })
 
-  let matrix = [10, 10, 64, 64]
+  let matrix = [10, 10, 10, 10]
   let rows = matrix[2]
   let columns = matrix[3]
 
-  terrain.geometry = new THREE.PlaneGeometry(...matrix);  
+  let geometry = new THREE.PlaneGeometry(...matrix);  
+  if(terrain.altitude) {
 
-  let index = 0;
-  let altitude = fractal.generateTerrain(rows, columns, 1)
-
-  for (let i = 0; i <= rows; i++) { 
-    for (let j = 0; j <= columns; j++) { 
-      terrain.geometry.vertices[index].setZ(altitude[j][i])      
-      index++;
+    let index = 0;
+    
+    for (let i = 0; i <= rows; i++) { 
+      for (let j = 0; j <= columns; j++) { 
+        let alt = terrain.altitude[index] || 0;
+        geometry.vertices[index].setZ(alt)  
+        index++;
+      } 
     }
   }
 
@@ -59,19 +115,20 @@ function Terrain () {
   //  terrain.geometry.faces[i].color.copy(shade)
   //})
 
-  terrain.mesh = new THREE.Mesh(
-    terrain.geometry, 
-    terrain.material
+  let mesh = new THREE.Mesh(
+    geometry, 
+    material
   )
-  terrain.matrix = matrix;
 
-  return terrain;
+  //mesh.position.set(...terrain.position)
+  mesh.geometry.translate(...terrain.position)
+  return mesh;
 }
 
-function Stone() {
+function Stone(x = 0.5, y = 2, z = 1) {
   let stone : any = {}
 
-  let geometry = new THREE.BoxGeometry( 0.2, 0.2, 0.2 );
+  let geometry = new THREE.BoxGeometry(x, y, z);
   
   let texture = new THREE.TextureLoader().load(assets.stone);
   texture.magFilter = THREE.NearestFilter;
@@ -89,6 +146,9 @@ function Stone() {
 
 function World() {
   let ctx : any = {}
+  ctx.worldSize = 100;
+  ctx.tiles = 100;
+  ctx.terrain = {}
   ctx.scene = new THREE.Scene()
   ctx.camera = new THREE.PerspectiveCamera(
     75, 
@@ -105,36 +165,52 @@ function World() {
   document.body.appendChild(ctx.renderer.domElement);
 
   ctx.zoom = 2;
-  ctx.tilt = 2;
+  ctx.tilt = 1;
+
   ctx.camera.position.x = 0;
   ctx.camera.position.y = 0;
   ctx.camera.position.z = ctx.zoom
-  //ctx.camera.rotation.x = Math.PI / 2
   ctx.camera.lookAt(0, 0, 0);
   ctx.camera.up.set(0, 0, 1);
   
-  function randomPositionOnTerrain() {
-    let random = sample(ctx.terrain.geometry.vertices)
-    return [random.x, random.y, random.z]
+  function getZ (x, y, log = false) {
+    let { terrain: { geometry: { vertices } } } = ctx;
+    
+    let index = findIndex(vertices, { 
+      x: Math.round(x),
+      y: Math.round(y)
+    })
+
+    let z = vertices[index] ? vertices[index].z : 0
+    
+    if(log) {
+      console.log([x, y, z])
+    }
+
+    return z;
   }
 
-  function cube() {
-    let geometry = new THREE.BoxGeometry( 0.1, 0.1, 0.1 );
-    let material = new THREE.MeshBasicMaterial({
-      color: 0x999999
-    })
- 
-    ctx.cube = new THREE.Mesh(geometry, material);
-    let vertices = ctx.terrain.geometry.vertices
-    let vertex = vertices[(vertices.length - 1)/2]
-    ctx.cube.position.set(vertex.x, vertex.y, vertex.z)
-    ctx.scene.add(ctx.cube)
+  function randomPositionOnTerrain() {
+    let x = Math.round(Math.random() * 95)
+    let y = Math.round(Math.random() * 95)
+    let z = getZ(x, y)
+    return [x, y, z]
+  }
 
-    
+  function sphere() {
+    let geometry = new THREE.SphereGeometry(0.2, 32, 32 );
+    let material = new THREE.MeshLambertMaterial({ 
+      color: 0x00bfff,
+      flatShading: true,
+      vertexColors: THREE.VertexColors 
+    });
+    ctx.cube = new THREE.Mesh( geometry, material );  
+    ctx.cube.position.set(50, 50, 2)
+    ctx.scene.add(ctx.cube) 
   }
 
   function light() {
-    let light = new THREE.HemisphereLight(0xfffafa,0x000000, .9)
+    let light = new THREE.HemisphereLight(0xfffafa,0x000000, .7)
     let sun = new THREE.DirectionalLight( 0xcdc1c5, 0.9);
     sun.position.set(-10, -10, 10)
     sun.castShadow = true;
@@ -146,53 +222,95 @@ function World() {
   }
 
   function generateTrees() {
-    let { terrain } = ctx;
+    let { terrain, scene } = ctx;
 
-    for(let i = 0; i < 50; i++) {
+    for(let i = 0; i < 100; i++) {
       let tree = Tree()
       tree.rotation.set(Math.PI / 2, Math.PI / 2, 0)
       let scale = Math.random() * (1 - 0.5) + 0.5;
       tree.scale.set(scale, scale, scale)
       tree.position.set(...randomPositionOnTerrain())
-      ctx.scene.add(tree)
+      scene.add(tree)
     }
+    let vert = ctx.terrain.geometry.vertices
+    let square = chunk(vert, Math.sqrt(vert.length))
+    let s = flatten([
+      ...square.slice(0,11),
+      ...square[21],
+      ...square[30],
+      ...square[39],
+  
+      ...square.reverse().slice(0,11)
+    ])
+
+    s.forEach(p => {
+      let tree = Tree()
+      tree.rotation.set(Math.PI / 2, Math.PI / 2, 0)
+      let scale = Math.random() * (1 - 0.5) + 0.5;
+      tree.scale.set(scale, scale, scale)
+      tree.position.set(p.x, p.y, p.z)
+      scene.add(tree)
+    })
   }
-  let sky = new THREE.TextureLoader().load(assets.sky)
-  ctx.scene.background = sky;
-  //ctx.scene.background = new THREE.Color(0x00bfff)
-  ctx.scene.fog = new THREE.FogExp2(0xefd1b5, 0.001)
-  ctx.terrain = Terrain()
-  let terrain2 = ctx.terrain.mesh.clone()
-  terrain2.geometry.translate(640, 0, 0)
 
-  //let terrain2 = Terrain()
-  //terrain2.mesh.geometry.translate(64 * 10, 0, 0)
-  //console.log(terrain2)
-  ctx.scene.add(ctx.terrain.mesh)
-  ctx.scene.add(terrain2)
-  console.log(terrain2)
-  //ctx.scene.add(terrain2.mesh)
+  function createMap() {
+    ctx.terrain.geometry = new THREE.Geometry();
+    let altitude = fractal.generateTerrain(100, 100, 0.5)
 
+    for(let i = 0; i < 10; i++) {
+      for(let j = 0; j < 10; j++) {
+        let terrain = Terrain({
+          position: [i * 10, j * 10, 0],
+          color: i < 4 && j < 4 ? 0x7cfc00 : null,
+          altitude: segmentTopography(altitude, [i, j])
+        })
+        ctx.scene.add(terrain)
+        ctx.terrain.geometry.vertices = ctx.terrain.geometry.vertices.concat(
+          terrain.geometry.vertices
+        )
+      
+      }
+    }
+
+    console.log(ctx)
+  }
+
+  //let sky = new THREE.TextureLoader().load(assets.sky)
+  //ctx.scene.background = sky;
+  ctx.scene.background = new THREE.Color(0x00bfff)
+  ctx.scene.fog = new THREE.FogExp2(0xefd1b5, 0.005)
+
+  createMap()
+  
   light()
-
-  cube()
+  sphere()
   generateTrees()
 
-  for(let i = 0; i < 10; i++) {
-    let stone1 = Stone()
-    let stone2 = Stone()
-    let stone3 = Stone()
+  let anchorStone = Stone()
+  anchorStone.mesh.position.set(
+    ...randomPositionOnTerrain()
+  )
+  let p = anchorStone.mesh.position;
+  let n = 0;
 
-    stone1.mesh.position.set(...randomPositionOnTerrain())
-    let p = stone1.mesh.position;
+  for(let i = 0; i < 5; i++) {
+    let bottom = Stone()
+    console.log(bottom)
+    let top = Stone()
+    n += 2
 
-    stone2.mesh.position.set(p.x, p.y, p.z + 0.4)
-    stone3.mesh.position.set(p.x, p.y, p.z + 0.2)
-    ctx.scene.add(stone1.mesh)
-    ctx.scene.add(stone2.mesh)
-    ctx.scene.add(stone3.mesh)
+    bottom.mesh.position.set(p.x + n, p.y, p.z)
+    top.mesh.position.set(p.x + n, p.y, p.z + 1)
+    
+    ctx.scene.add(bottom.mesh)
+    ctx.scene.add(top.mesh)
   }
 
+  let crown = Stone(10, 2, 0.5)
+  crown.mesh.position.set(
+    p.x + 6, p.y, p.z + 1.5
+  )
+  ctx.scene.add(crown.mesh)
 
   function onWindowResize() {
     ctx.camera.aspect = window.innerWidth / window.innerHeight;
@@ -207,7 +325,7 @@ function World() {
   function animate() {
     requestAnimationFrame(animate);
     let position = ctx.cube.position
-    ctx.camera.position.set(position.x + ctx.tilt, position.y, position.z + ctx.zoom)
+    ctx.camera.position.set(position.x, position.y - ctx.tilt, position.z + ctx.zoom)
     ctx.camera.lookAt(position.x, position.y, position.z)
     //sole.log('updating...')
     //console.log(ctx)
@@ -236,41 +354,50 @@ function World() {
     //controls.addEventListener('change', render);
 
     animate();
-
+   
     window.addEventListener('keydown', function(e) {
       let vertices = ctx.terrain.geometry.vertices;
-      let position = ctx.cube.position
-      let i = findIndex(vertices, {...position})
-      
-      console.log(e.code)
-
-      let vertex;
+      let position = ctx.cube.position.toArray()
+      let offset = 0.6
+      let velocity = 1;
+      let z;
+      document.getElementById('info').innerHTML = `<span>${position.join(', ')}<span>`  
+  
       switch (e.code) {
         case 'ArrowUp':
-          vertex = vertices[i - 1]
-          position.set(vertex.x, vertex.y, vertex.z)
+          
+          position[1] += velocity;
+          z = getZ(position[0], position[1], true)  
+          console.log(z)
+          position[2] = z + offset;
+          ctx.cube.position.set(...position)
           break;
         case 'ArrowRight':
-          vertex = vertices[i - ctx.terrain.matrix[3] - 1]
-          position.set(vertex.x, vertex.y, vertex.z)
+          position[0] += velocity;
+          z = getZ(position[0], position[1], true)  
+          position[2] = z + offset      
+          ctx.cube.position.set(...position)
           break
         case 'ArrowLeft':
           //-y
-          vertex = vertices[i + ctx.terrain.matrix[3] + 1]
-          position.set(vertex.x, vertex.y, vertex.z)
+          z = getZ(position[0], position[1], true)  
+          position[0] -= velocity;
+          position[2] = z + offset          
+          ctx.cube.position.set(...position)
           break
         case 'ArrowDown':
-          //-x
-          vertex = vertices[i + 1]
-          position.set(vertex.x, vertex.y, vertex.z)
+          //+x
+          z = getZ(position[0], position[1], true)  
+          position[1] -= velocity;
+          position[2] = z + offset         
+          ctx.cube.position.set(...position)
+
           break;
         case 'Equal':
           ctx.zoom--
-          console.log(ctx)
           break
         case 'Minus':
           ctx.zoom++
-          console.log(ctx)
           break
       }
     })
