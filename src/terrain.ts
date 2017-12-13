@@ -164,8 +164,8 @@ function World() {
   ctx.renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(ctx.renderer.domElement);
 
-  ctx.zoom = 2;
-  ctx.tilt = 1;
+  ctx.zoom = 1;
+  ctx.tilt = 2;
 
   ctx.camera.position.x = 0;
   ctx.camera.position.y = 0;
@@ -237,13 +237,20 @@ function World() {
     let s = flatten([
       ...square.slice(0,11),
       ...square[21],
-      ...square[30],
-      ...square[39],
-  
+      ...square[22],
+      ...square[32],
+      ...square[33],
+      ...square[43],
+      ...square[44],
+      ...square[54],
+      ...square[55],
+      ...square[65],
+      ...square[66],
       ...square.reverse().slice(0,11)
     ])
 
     s.forEach(p => {
+
       let tree = Tree()
       tree.rotation.set(Math.PI / 2, Math.PI / 2, 0)
       let scale = Math.random() * (1 - 0.5) + 0.5;
