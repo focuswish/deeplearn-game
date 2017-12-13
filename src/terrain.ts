@@ -125,6 +125,25 @@ function Terrain (params = {}) {
   return mesh;
 }
 
+function Wood(x = 0.5, y = 10, z = 1) {
+  let wood : any = {}
+
+  let geometry = new THREE.BoxGeometry(x, y, z);
+  
+  let texture = new THREE.TextureLoader().load(assets.stone);
+  texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.LinearMipMapLinearFilter;
+  let mesh = new THREE.Mesh(
+    geometry, 
+    new THREE.MeshLambertMaterial({ 
+      map: texture, 
+      vertexColors: THREE.VertexColors 
+    }) 
+  )
+
+  return mesh
+}
+
 function Stone(x = 0.5, y = 2, z = 1) {
   let stone : any = {}
 
