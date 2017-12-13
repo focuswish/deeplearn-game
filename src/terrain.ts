@@ -125,14 +125,33 @@ function Terrain (params = {}) {
   return mesh;
 }
 
-function Wood(x = 0.5, y = 10, z = 1) {
+function Rock(radius = 0.2, detail = 0) {
+  let rock = {}
+
+  let geometry = new THREE.DodecahedronGeometry(radius, detail)
+  let mesh = new THREE.Mesh(
+    geometry, 
+    new THREE.MeshLambertMaterial({ 
+      color: 0x999999,
+      vertexColors: THREE.VertexColors 
+    }) 
+  )
+
+  return mesh;
+}
+
+function Wood(x = 0.1, y = 2, z = 0.2) {
   let wood : any = {}
 
   let geometry = new THREE.BoxGeometry(x, y, z);
   
-  let texture = new THREE.TextureLoader().load(assets.stone);
+  let texture = new THREE.TextureLoader().load(BASE_ASSET_URL + 'wood.jpg');
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.LinearMipMapLinearFilter;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(1, 10);
+
   let mesh = new THREE.Mesh(
     geometry, 
     new THREE.MeshLambertMaterial({ 
@@ -140,6 +159,8 @@ function Wood(x = 0.5, y = 10, z = 1) {
       vertexColors: THREE.VertexColors 
     }) 
   )
+
+  mesh.rotation.set(Math.PI / 2, 0, 0)
 
   return mesh
 }
@@ -175,9 +196,7 @@ function World() {
     1, 
     1000
   );  
-  ctx.renderer = new THREE.WebGLRenderer({
-    canvas: document.getElementById('canvas')
-  })
+  ctx.renderer = new THREE.WebGLRenderer()
 
   ctx.renderer.setPixelRatio( window.devicePixelRatio );
   ctx.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -254,7 +273,6 @@ function World() {
     let vert = ctx.terrain.geometry.vertices
     let square = chunk(vert, Math.sqrt(vert.length))
     let s = flatten([
-      ...square.slice(0,11),
       ...square[21],
       ...square[22],
       ...square[32],
@@ -265,7 +283,6 @@ function World() {
       ...square[55],
       ...square[65],
       ...square[66],
-      ...square.reverse().slice(0,11)
     ])
 
     s.forEach(p => {
@@ -303,8 +320,9 @@ function World() {
 
   //let sky = new THREE.TextureLoader().load(assets.sky)
   //ctx.scene.background = sky;
-  ctx.scene.background = new THREE.Color(0x00bfff)
-  ctx.scene.fog = new THREE.FogExp2(0xefd1b5, 0.005)
+  ctx.scene.background = new THREE.Color(0x191970)
+  //ctx.scene.background = new THREE.Color( 0xefd1b5 );
+  ctx.scene.fog = new THREE.FogExp2( 0x191970, 0.0025 * 10);
 
   createMap()
   
@@ -321,7 +339,6 @@ function World() {
 
   for(let i = 0; i < 5; i++) {
     let bottom = Stone()
-    console.log(bottom)
     let top = Stone()
     n += 2
 
@@ -338,6 +355,41 @@ function World() {
   )
   ctx.scene.add(crown.mesh)
 
+  for(let i = 0; i < 20; i++) {
+    let woodMesh = Wood()
+    woodMesh.scale.set(0.5, 0.5, 0.5)
+    woodMesh.position.set(50 + (i * 0.5), 50, 0)    
+    ctx.scene.add(woodMesh)
+  }
+
+  // Pile of rocks
+  let circle = new THREE.CircleGeometry(0.5, 10)
+  let innerCircle = new THREE.CircleGeometry(0.1, 20)
+
+  let randomInRange = (min, max) => (Math.random() * (max - min + 1)) + min;
+  
+  circle.vertices
+    .filter(v => v.x !== 0 && v.y !== 0)
+    .forEach((v, i) => {
+    let scale = Math.random() * 0.5
+    let rockMesh = Rock()
+    rockMesh.position.set(55 + v.x, 55 + v.y, 0)
+    rockMesh.scale.set(scale, scale, scale)
+    ctx.scene.add(rockMesh)
+  })
+  console.log(innerCircle)
+
+
+  innerCircle.vertices.forEach(v => {
+    let woodMesh = Wood()
+    woodMesh.scale.set(0.2, 0.2, 0.2)
+    woodMesh.position.set(55 + v.x, 55 + v.y, 0)   
+    let sign = () => Math.random() < 0.5 ? -1 : 1
+    let rad = (Math.PI / 2) * Math.random() * sign()
+    woodMesh.rotation.set(rad, 0, 0)
+    ctx.scene.add(woodMesh)
+  })  
+  
   function onWindowResize() {
     ctx.camera.aspect = window.innerWidth / window.innerHeight;
     ctx.camera.updateProjectionMatrix();
@@ -388,7 +440,8 @@ function World() {
       let velocity = 1;
       let z;
       document.getElementById('info').innerHTML = `<span>${position.join(', ')}<span>`  
-  
+      console.log(e.code)
+
       switch (e.code) {
         case 'ArrowUp':
           
@@ -417,6 +470,7 @@ function World() {
           position[1] -= velocity;
           position[2] = z + offset         
           ctx.cube.position.set(...position)
+        case 'Q':
 
           break;
         case 'Equal':
