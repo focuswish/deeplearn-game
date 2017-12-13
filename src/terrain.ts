@@ -9,7 +9,8 @@ import { sample, findIndex } from 'lodash'
 
 const assets = {
   ground: 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/minecraft.jpg',
-  stone: 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/stone.jpg'
+  stone: 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/stone.jpg',
+  sky: 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/galaxy.jpg'
 }
 
 function Terrain () {
@@ -53,18 +54,17 @@ function Terrain () {
     }
   }
 
-  terrain.geometry.faces.forEach((face, i) => {
-    let shade = sand.lerp(dirt, Math.random() * 0.1)
-    terrain.geometry.faces[i].color.copy(shade)
-  })
+  //terrain.geometry.faces.forEach((face, i) => {
+  //  let shade = sand.lerp(dirt, Math.random() * 0.1)
+  //  terrain.geometry.faces[i].color.copy(shade)
+  //})
 
   terrain.mesh = new THREE.Mesh(
     terrain.geometry, 
     terrain.material
   )
+  terrain.matrix = matrix;
 
-  //terrain.mesh.receiveShadow = true;
-  //terrain.mesh.rotation.set(Math.PI / 2, 0, 0)
   return terrain;
 }
 
@@ -148,19 +148,30 @@ function World() {
   function generateTrees() {
     let { terrain } = ctx;
 
-    for(let i = 0; i < 100; i++) {
+    for(let i = 0; i < 50; i++) {
       let tree = Tree()
       tree.rotation.set(Math.PI / 2, Math.PI / 2, 0)
-      let scale = Math.random() * (0.5 - 0.3) + 0.3;
+      let scale = Math.random() * (1 - 0.5) + 0.5;
       tree.scale.set(scale, scale, scale)
       tree.position.set(...randomPositionOnTerrain())
       ctx.scene.add(tree)
     }
   }
-  ctx.scene.background = new THREE.Color(0x00bfff)
+  let sky = new THREE.TextureLoader().load(assets.sky)
+  ctx.scene.background = sky;
+  //ctx.scene.background = new THREE.Color(0x00bfff)
   ctx.scene.fog = new THREE.FogExp2(0xefd1b5, 0.001)
   ctx.terrain = Terrain()
+  let terrain2 = ctx.terrain.mesh.clone()
+  terrain2.geometry.translate(640, 0, 0)
+
+  //let terrain2 = Terrain()
+  //terrain2.mesh.geometry.translate(64 * 10, 0, 0)
+  //console.log(terrain2)
   ctx.scene.add(ctx.terrain.mesh)
+  ctx.scene.add(terrain2)
+  console.log(terrain2)
+  //ctx.scene.add(terrain2.mesh)
 
   light()
 
@@ -175,9 +186,11 @@ function World() {
     stone1.mesh.position.set(...randomPositionOnTerrain())
     let p = stone1.mesh.position;
 
-    stone2.mesh.position.set(p.x + 0.2, p.y, p.z)
+    stone2.mesh.position.set(p.x, p.y, p.z + 0.4)
     stone3.mesh.position.set(p.x, p.y, p.z + 0.2)
     ctx.scene.add(stone1.mesh)
+    ctx.scene.add(stone2.mesh)
+    ctx.scene.add(stone3.mesh)
   }
 
 
@@ -238,12 +251,12 @@ function World() {
           position.set(vertex.x, vertex.y, vertex.z)
           break;
         case 'ArrowRight':
-          vertex = vertices[i - 65]
+          vertex = vertices[i - ctx.terrain.matrix[3] - 1]
           position.set(vertex.x, vertex.y, vertex.z)
           break
         case 'ArrowLeft':
           //-y
-          vertex = vertices[i + 65]
+          vertex = vertices[i + ctx.terrain.matrix[3] + 1]
           position.set(vertex.x, vertex.y, vertex.z)
           break
         case 'ArrowDown':
