@@ -6,14 +6,18 @@ import * as fractal from 'fractal-terrain-generator'
 import Sprite from './sprite'
 import Tree from './tree';
 import { sample, findIndex, flatten, chunk, take, tail} from 'lodash'
+import * as CANNON from 'cannon'
 
-const assets = {
-  ground: 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/minecraft.jpg',
-  stone: 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/stone.jpg',
-  sky: 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/galaxy.jpg'
-}
-
-const BASE_ASSET_URL = 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/'
+import Terrain from './three/Terrain'
+import { initCannon } from './three/physics'
+import {
+  Rock, 
+  Wood, 
+  Stone, 
+  generateTerrainObjects,
+  generateTrees,
+  generateCampfire
+} from './three/objects'
 
 function segment(matrix, vertices) {  
   let n = Math.sqrt(vertices.length)
@@ -53,137 +57,6 @@ function segmentTopography(topography, matrix) {
   return out;
 }
 
-
-function Terrain (params = {}) {
-  let terrain : any = {
-    color: 0xE1A95F, 
-    asset: null, 
-    flat: false,
-    position: [0, 0, 0],
-    altitude: null,
-    ...params
-  }
-  
-  let texture;
-
-  if(terrain.asset) {
-    texture = new THREE.TextureLoader().load(BASE_ASSET_URL + terrain.asset); 
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(64, 64);
-  }
-
-  //texture.magFilter = THREE.NearestFilter;
-  //texture.minFilter = THREE.LinearMipMapLinearFilter;
-  
-  //terrain.material = new THREE.MeshLambertMaterial({ 
-    //map: texture, 
-  //  vertexColors: THREE.VertexColors 
-  //}) 
-  let sand = new THREE.Color(0xE1A95F)
-  let dirt = new THREE.Color(0xD2B48C)
-  let colorArray = sand.toArray()
-
-  let material = new THREE.MeshStandardMaterial ({
-    color: terrain.color,    
-    flatShading: true,
-    metalness: 0,
-    vertexColors: THREE.FaceColors,
-    map: texture ? texture : null
-  })
-
-  let matrix = [10, 10, 10, 10]
-  let rows = matrix[2]
-  let columns = matrix[3]
-
-  let geometry = new THREE.PlaneGeometry(...matrix);  
-  if(terrain.altitude) {
-
-    let index = 0;
-    
-    for (let i = 0; i <= rows; i++) { 
-      for (let j = 0; j <= columns; j++) { 
-        let alt = terrain.altitude[index] || 0;
-        geometry.vertices[index].setZ(alt)  
-        index++;
-      } 
-    }
-  }
-
-  //terrain.geometry.faces.forEach((face, i) => {
-  //  let shade = sand.lerp(dirt, Math.random() * 0.1)
-  //  terrain.geometry.faces[i].color.copy(shade)
-  //})
-
-  let mesh = new THREE.Mesh(
-    geometry, 
-    material
-  )
-
-  //mesh.position.set(...terrain.position)
-  mesh.geometry.translate(...terrain.position)
-  return mesh;
-}
-
-function Rock(radius = 0.2, detail = 0) {
-  let rock = {}
-
-  let geometry = new THREE.DodecahedronGeometry(radius, detail)
-  let mesh = new THREE.Mesh(
-    geometry, 
-    new THREE.MeshLambertMaterial({ 
-      color: 0x999999,
-      vertexColors: THREE.VertexColors 
-    }) 
-  )
-
-  return mesh;
-}
-
-function Wood(x = 0.1, y = 2, z = 0.2) {
-  let wood : any = {}
-
-  let geometry = new THREE.BoxGeometry(x, y, z);
-  
-  let texture = new THREE.TextureLoader().load(BASE_ASSET_URL + 'wood.jpg');
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.LinearMipMapLinearFilter;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(1, 10);
-
-  let mesh = new THREE.Mesh(
-    geometry, 
-    new THREE.MeshLambertMaterial({ 
-      map: texture, 
-      vertexColors: THREE.VertexColors 
-    }) 
-  )
-
-  mesh.rotation.set(Math.PI / 2, 0, 0)
-
-  return mesh
-}
-
-function Stone(x = 0.5, y = 2, z = 1) {
-  let stone : any = {}
-
-  let geometry = new THREE.BoxGeometry(x, y, z);
-  
-  let texture = new THREE.TextureLoader().load(assets.stone);
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.LinearMipMapLinearFilter;
-  stone.mesh = new THREE.Mesh(
-    geometry, 
-    new THREE.MeshLambertMaterial({ 
-      map: texture, 
-      vertexColors: THREE.VertexColors 
-    }) 
-  )
-
-  return stone;
-}
-
 function World() {
   let ctx : any = {}
   ctx.worldSize = 100;
@@ -211,7 +84,7 @@ function World() {
   ctx.camera.lookAt(0, 0, 0);
   ctx.camera.up.set(0, 0, 1);
   
-  function getZ (x, y, log = false) {
+  function getZ (x, y) {
     let { terrain: { geometry: { vertices } } } = ctx;
     
     let index = findIndex(vertices, { 
@@ -220,31 +93,28 @@ function World() {
     })
 
     let z = vertices[index] ? vertices[index].z : 0
-    
-    if(log) {
-      console.log([x, y, z])
-    }
 
     return z;
   }
 
   function randomPositionOnTerrain() {
-    let x = Math.round(Math.random() * 95)
-    let y = Math.round(Math.random() * 95)
+    let x = Math.round(Math.random() * 5)
+    let y = Math.round(Math.random() * 5)
     let z = getZ(x, y)
     return [x, y, z]
   }
 
-  function sphere() {
+  function avatar() {
     let geometry = new THREE.SphereGeometry(0.2, 32, 32 );
+
     let material = new THREE.MeshLambertMaterial({ 
       color: 0x00bfff,
       flatShading: true,
       vertexColors: THREE.VertexColors 
     });
-    ctx.cube = new THREE.Mesh( geometry, material );  
-    ctx.cube.position.set(50, 50, 2)
-    ctx.scene.add(ctx.cube) 
+
+    ctx.avatar = new THREE.Mesh(geometry, material);  
+    ctx.scene.add(ctx.avatar) 
   }
 
   function light() {
@@ -259,220 +129,143 @@ function World() {
     return ctx;
   }
 
-  function generateTrees() {
-    let { terrain, scene } = ctx;
-
-    for(let i = 0; i < 100; i++) {
-      let tree = Tree()
-      tree.rotation.set(Math.PI / 2, Math.PI / 2, 0)
-      let scale = Math.random() * (1 - 0.5) + 0.5;
-      tree.scale.set(scale, scale, scale)
-      tree.position.set(...randomPositionOnTerrain())
-      scene.add(tree)
-    }
-    let vert = ctx.terrain.geometry.vertices
-    let square = chunk(vert, Math.sqrt(vert.length))
-    let s = flatten([
-      ...square[21],
-      ...square[22],
-      ...square[32],
-      ...square[33],
-      ...square[43],
-      ...square[44],
-      ...square[54],
-      ...square[55],
-      ...square[65],
-      ...square[66],
-    ])
-
-    s.forEach(p => {
-
-      let tree = Tree()
-      tree.rotation.set(Math.PI / 2, Math.PI / 2, 0)
-      let scale = Math.random() * (1 - 0.5) + 0.5;
-      tree.scale.set(scale, scale, scale)
-      tree.position.set(p.x, p.y, p.z)
-      scene.add(tree)
-    })
-  }
-
   function createMap() {
+  
     ctx.terrain.geometry = new THREE.Geometry();
     let altitude = fractal.generateTerrain(100, 100, 0.5)
 
-    for(let i = 0; i < 10; i++) {
-      for(let j = 0; j < 10; j++) {
+    for(let i = 0; i < 1; i++) {
+      for(let j = 0; j < 1; j++) {
+        
         let terrain = Terrain({
           position: [i * 10, j * 10, 0],
           color: i < 4 && j < 4 ? 0x7cfc00 : null,
           altitude: segmentTopography(altitude, [i, j])
         })
+
         ctx.scene.add(terrain)
         ctx.terrain.geometry.vertices = ctx.terrain.geometry.vertices.concat(
           terrain.geometry.vertices
         )
-      
+
       }
     }
-
-    console.log(ctx)
   }
 
   //let sky = new THREE.TextureLoader().load(assets.sky)
   //ctx.scene.background = sky;
-  ctx.scene.background = new THREE.Color(0x191970)
-  //ctx.scene.background = new THREE.Color( 0xefd1b5 );
-  ctx.scene.fog = new THREE.FogExp2( 0x191970, 0.0025 * 10);
+  //ctx.scene.background = new THREE.Color(0x191970)
+  ctx.scene.background = new THREE.Color( 0xefd1b5 );
+  ctx.scene.fog = new THREE.FogExp2( 0x191970, 0.0025);
 
   createMap()
-  
+
   light()
-  sphere()
-  generateTrees()
-
-  let anchorStone = Stone()
-  anchorStone.mesh.position.set(
-    ...randomPositionOnTerrain()
-  )
-  let p = anchorStone.mesh.position;
-  let n = 0;
-
-  for(let i = 0; i < 5; i++) {
-    let bottom = Stone()
-    let top = Stone()
-    n += 2
-
-    bottom.mesh.position.set(p.x + n, p.y, p.z)
-    top.mesh.position.set(p.x + n, p.y, p.z + 1)
-    
-    ctx.scene.add(bottom.mesh)
-    ctx.scene.add(top.mesh)
-  }
-
-  let crown = Stone(10, 2, 0.5)
-  crown.mesh.position.set(
-    p.x + 6, p.y, p.z + 1.5
-  )
-  ctx.scene.add(crown.mesh)
-
-  for(let i = 0; i < 20; i++) {
-    let woodMesh = Wood()
-    woodMesh.scale.set(0.5, 0.5, 0.5)
-    woodMesh.position.set(50 + (i * 0.5), 50, 0)    
-    ctx.scene.add(woodMesh)
-  }
-
-  // Pile of rocks
-  let circle = new THREE.CircleGeometry(0.5, 10)
-  let innerCircle = new THREE.CircleGeometry(0.1, 20)
-
-  let randomInRange = (min, max) => (Math.random() * (max - min + 1)) + min;
   
-  circle.vertices
-    .filter(v => v.x !== 0 && v.y !== 0)
-    .forEach((v, i) => {
-    let scale = Math.random() * 0.5
-    let rockMesh = Rock()
-    rockMesh.position.set(55 + v.x, 55 + v.y, 0)
-    rockMesh.scale.set(scale, scale, scale)
-    ctx.scene.add(rockMesh)
-  })
-  console.log(innerCircle)
-
-
-  innerCircle.vertices.forEach(v => {
-    let woodMesh = Wood()
-    woodMesh.scale.set(0.2, 0.2, 0.2)
-    woodMesh.position.set(55 + v.x, 55 + v.y, 0)   
-    let sign = () => Math.random() < 0.5 ? -1 : 1
-    let rad = (Math.PI / 2) * Math.random() * sign()
-    woodMesh.rotation.set(rad, 0, 0)
-    ctx.scene.add(woodMesh)
-  })  
+  avatar()
   
+  generateTrees(ctx, randomPositionOnTerrain())
+  
+  //generateTerrainObjects(ctx, randomPositionOnTerrain())
+  
+  //generateCampfire(ctx)
+
+  // CANNON
+
+  let { world, ballMeshes, balls, sphereBody } = initCannon(ctx)
+
+  console.log({world, ballMeshes, balls, sphereBody})
+  
+  ctx.world = world;
+  ctx.sphereBody = sphereBody;
+
   function onWindowResize() {
     ctx.camera.aspect = window.innerWidth / window.innerHeight;
     ctx.camera.updateProjectionMatrix();
     ctx.renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
+  let timeStep = 1/60
+
+  function updatePhysics() {
+    // Step the physics world
+    ctx.world.step(timeStep)
+    
+    for(var i=0; i< balls.length; i++ ){
+      ballMeshes[i].position.copy(balls[i].position);
+      ballMeshes[i].quaternion.copy(balls[i].quaternion);
+    }
+
+    // Copy coordinates from Cannon.js to Three.js
+    ctx.avatar.position.copy(ctx.sphereBody.position)
+    ctx.avatar.quaternion.copy(ctx.sphereBody.quaternion)
+  }
+
   function render() {    
+    updatePhysics()
     ctx.renderer.render(ctx.scene, ctx.camera);
   }
   
   function animate() {
     requestAnimationFrame(animate);
-    let position = ctx.cube.position
-    ctx.camera.position.set(position.x, position.y - ctx.tilt, position.z + ctx.zoom)
-    ctx.camera.lookAt(position.x, position.y, position.z)
-    //sole.log('updating...')
-    //console.log(ctx)
-    //let position = ctx.cube.position
-    //ctx.camera.lookAt(position.x, position.y, position.z)
-    //ctx.controls.update();    
+    let {
+      position: {
+        x, y, z
+      }
+    } = ctx.avatar
+
+    ctx.camera.position.set(x, y - ctx.tilt, z + ctx.zoom)
+    ctx.camera.lookAt(x, y, z)  
+
     render()
   }
 
   ctx.init = () => {
     window.addEventListener('resize', onWindowResize, false)
-    //let controls = new TrackballControls(ctx.camera, ctx.renderer.domElement);
-    //ctx.controls = controls;
-
-    //controls.rotateSpeed = 1.0;
-    //controls.zoomSpeed = 1.2;
-    //controls.panSpeed = 0.8;
-    
-    //controls.noZoom = false;
-    //controls.noPan = false;
-    
-   // controls.staticMoving = true;
-   // controls.dynamicDampingFactor = 0.3;
-    
-    //controls.keys = [ 65, 83, 68 ];
-    //controls.addEventListener('change', render);
-
-    animate();
+    animate()
    
     window.addEventListener('keydown', function(e) {
-      let vertices = ctx.terrain.geometry.vertices;
-      let position = ctx.cube.position.toArray()
+      let { vertices } = ctx.terrain.geometry
+
+      let position = ctx.sphereBody.position.toArray()
+      let nextPosition = position;
       let offset = 0.6
-      let velocity = 1;
+      let force = 1;
       let z;
+      
       document.getElementById('info').innerHTML = `<span>${position.join(', ')}<span>`  
-      console.log(e.code)
 
       switch (e.code) {
         case 'ArrowUp':
-          
-          position[1] += velocity;
-          z = getZ(position[0], position[1], true)  
-          console.log(z)
-          position[2] = z + offset;
-          ctx.cube.position.set(...position)
+          position[1] += -0.2
+          ctx.sphereBody.applyImpulse(
+            new CANNON.Vec3(0, force, 0),
+            new CANNON.Vec3(...position)
+          )
           break;
         case 'ArrowRight':
-          position[0] += velocity;
-          z = getZ(position[0], position[1], true)  
-          position[2] = z + offset      
-          ctx.cube.position.set(...position)
+          position[0] += -0.2
+          ctx.sphereBody.applyImpulse(
+            new CANNON.Vec3(force, 0, 0),
+            new CANNON.Vec3(...position)
+          )
           break
         case 'ArrowLeft':
           //-y
-          z = getZ(position[0], position[1], true)  
-          position[0] -= velocity;
-          position[2] = z + offset          
-          ctx.cube.position.set(...position)
+          position[0] += 0.2
+          ctx.sphereBody.applyImpulse(
+            new CANNON.Vec3(force * -1, 0, 0),
+            new CANNON.Vec3(...position)
+          )
           break
         case 'ArrowDown':
           //+x
-          z = getZ(position[0], position[1], true)  
-          position[1] -= velocity;
-          position[2] = z + offset         
-          ctx.cube.position.set(...position)
-        case 'Q':
-
-          break;
+          position[1] += 0.2
+          ctx.sphereBody.applyImpulse(
+            new CANNON.Vec3(0, force * -1, 0),
+            new CANNON.Vec3(...position)
+          )
+          
         case 'Equal':
           ctx.zoom--
           break

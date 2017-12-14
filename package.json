@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "description": "Starter project for using deeplearn.js with TypeScript",
   "dependencies": {
+    "cannon": "^0.6.2",
     "deeplearn": "~0.3.3",
     "deeplearn-graph-serializer": "^0.3.1",
     "fractal-terrain-generator": "^0.0.2",
