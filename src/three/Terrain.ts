@@ -42,8 +42,8 @@ function Terrain (params = {}) {
     
     for (let i = 0; i <= rows; i++) { 
       for (let j = 0; j <= columns; j++) { 
-        //let alt = terrain.altitude[index] || 0;
-        let alt = terrain.altitude[i][j]
+        let alt = terrain.altitude[i][j];
+        //let alt = 0;
         geometry.vertices[index].setZ(alt)  
         index++;
       } 

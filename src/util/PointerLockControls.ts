@@ -6,7 +6,7 @@
 import * as THREE from 'three'
 import * as CANNON from 'cannon'
 
-function PointerLockControls(camera, cannonBody) {
+function PointerLockControls(camera, cannonBody, avatar) {
   
       var eyeYPos = 2; // eyes are 2 meters above the ground
       var velocityFactor = 0.2;
@@ -146,21 +146,25 @@ function PointerLockControls(camera, cannonBody) {
           //if ( scope.enabled === false ) return;
   
           delta *= 0.1;
-  
+        
           inputVelocity.set(0,0,0);
+
+          let direction = camera.getWorldDirection();
+          
+          if (moveForward){
+            inputVelocity = direction.multiplyScalar(2)
+          }
+          if (moveBackward){
+            inputVelocity = direction.negate().multiplyScalar(2)
+          }
   
-          if ( moveForward ){
-              inputVelocity.y = velocityFactor * delta;
+          if (moveLeft) {
+            pitchObject.rotation.z += 0.2
+            avatar.children[1].rotateZ(0.2)
           }
-          if ( moveBackward ){
-              inputVelocity.y = -velocityFactor * delta;
-          }
-  
-          if ( moveLeft ){
-              inputVelocity.x = -velocityFactor * delta;
-          }
-          if ( moveRight ){
-              inputVelocity.x = velocityFactor * delta;
+          if (moveRight) {
+            pitchObject.rotation.z += -0.2
+            avatar.children[1].rotateZ(-0.2)
           }
   
           // Convert velocity to world coordinates
@@ -169,7 +173,6 @@ function PointerLockControls(camera, cannonBody) {
           euler.order = "XYZ";
           quat.setFromEuler(euler);
           inputVelocity.applyQuaternion(quat);
-          //quat.multiplyVector3(inputVelocity);
   
           // Add to the object
           velocity.x += inputVelocity.x;

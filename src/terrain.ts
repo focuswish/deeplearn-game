@@ -116,66 +116,57 @@ function World() {
       vertexColors: THREE.VertexColors 
     });
 
-    let cylinderMaterial = new THREE.MeshBasicMaterial()
-    cylinderMaterial.opacity = 0.01;
-
-    let cylinder = new THREE.Mesh(
-      new THREE.CylinderGeometry( 0.6, 0.6, 1.25), 
-      cylinderMaterial
-    )
-
-    cylinder.rotation.set(0, 0, Math.PI / 2)
-
-    let avatarGeometry = new THREE.Geometry()
-    
     let bottom = 0.60;
     let middle = 0.40;
     let top = 0.25;
+    
+    let topSnowmanMesh = new THREE.Mesh(
+      new THREE.DodecahedronGeometry(top/2, 1), 
+      material
+    )
+  
+    let middleSnowmanMesh = new THREE.Mesh(
+      new THREE.DodecahedronGeometry(middle/2, 1),
+      material
+    )
 
-    let sphereGeometry1 = new THREE.DodecahedronGeometry(top/2, 0);
-    let sphereGeometry2 = new THREE.DodecahedronGeometry(middle/2, 1);
-    let sphereGeometry3 = new THREE.DodecahedronGeometry(bottom/2, 1);
-    
-    let sphereMesh1 = new THREE.Mesh(sphereGeometry1, material)
-    let sphereMesh2 = new THREE.Mesh(sphereGeometry2, material)
-    let sphereMesh3 = new THREE.Mesh(sphereGeometry3, material)
-    
-    sphereMesh1.geometry.translate(0, 0, 0.80)
-    sphereMesh2.geometry.translate(0, 0, 0.50)
-    
-    //avatarGeometry.merge(sphereMesh1.geometry, sphereMesh1.matrix)
-    //avatarGeometry.merge(sphereMesh2.geometry, sphereMesh2.matrix)
-    //avatarGeometry.merge(sphereMesh3.geometry, sphereMesh3.matrix)
-    //avatarGeometry.merge(cylinder.geometry, cylinder.matrix)
+    let bottomSnowmanMesh = new THREE.Mesh(
+      new THREE.DodecahedronGeometry(bottom/2, 1),
+      material
+    )
 
-    //let avatarMesh = new THREE.Mesh(avatarGeometry, material)
-    //let avatarMesh = sphereMesh3
+    topSnowmanMesh.name = 'top_snowman_mesh'
+    middleSnowmanMesh.name = 'middle_snowman_mesh'
+    bottomSnowmanMesh.name = 'bottom_snowman_mesh'
+  
+    topSnowmanMesh.geometry.translate(0, 0, 0.80)
+    middleSnowmanMesh.geometry.translate(0, 0, 0.50)
+  
+    let topSnowman = new THREE.Object3D()
+    topSnowman.add(topSnowmanMesh)
+
+    let middleSnowman = new THREE.Object3D()
+    middleSnowman.add(middleSnowmanMesh)
+
+    let bottomSnowman = new THREE.Object3D()
+    bottomSnowman.add(bottomSnowmanMesh)
 
     let twig1 = Wood(0.1, 2, 0.1)
     twig1.scale.set(0.4, 0.4, 0.4)
     twig1.geometry.translate(0, 0, 1)
     twig1.rotation.set(0, 0, Math.PI / 2)
-    sphereMesh2.add(twig1)
+    
+    middleSnowman.add(twig1)
 
-    ctx.avatar = sphereMesh3
+    ctx.avatar = new THREE.Group()
+
+    ctx.avatar.add(bottomSnowman)
+    ctx.avatar.add(middleSnowman)
+    ctx.avatar.add(topSnowman)
     ctx.avatar.castShadow = true;
 
-    ctx.avatar.add(sphereMesh1)
-    ctx.avatar.add(sphereMesh2)
-    //ctx.avatar.geometry.normalize()
     ctx.scene.add(ctx.avatar)
-    //ctx.scene.add(sphereMesh1)
-    //ctx.scene.add(sphereMesh2)
     ctx.scene.updateMatrixWorld();
-    
-    //let vector = new THREE.Vector3();
-    //vector.setFromMatrixPosition(ctx.avatar.matrixWorld)
-    //twig1.position.copy(vector)
-    console.log('sphereMesh1',sphereMesh1)
-    console.log('sphereMesh2',sphereMesh2)
-    console.log('sphereMesh3',sphereMesh3)
-    console.log(ctx)
-    
   }
 
   function light() {
@@ -228,11 +219,9 @@ function World() {
     }*/
   }
 
-  //let sky = new THREE.TextureLoader().load(assets.sky)
-  //ctx.scene.background = sky;
-  //ctx.scene.background = new THREE.Color(0x191970)
-  ctx.scene.background = new THREE.Color( 0x00bfff );
-  ctx.scene.fog = new THREE.FogExp2( 0x191970, 0.0025);
+  //ctx.scene.background = new THREE.Color( 0x00bfff );
+  ctx.scene.background = new THREE.Color(0x191970)
+  ctx.scene.fog = new THREE.FogExp2( 0x000000, 0.0025 * 20);
 
   createMap()
 
@@ -241,8 +230,9 @@ function World() {
     ballMeshes, 
     balls, 
     boxes,
-    boxMeshes,
-    sphereBody 
+    sphereBody,
+    boxMeshGroup,
+    createBoxMeshGroup
   } = initCannon(ctx)
   
   light()
@@ -270,25 +260,68 @@ function World() {
     ctx.world.step(timeStep)
     
     ballMeshes.forEach((mesh, i) => {
-      mesh.position.copy(balls[i].position);
-      mesh.quaternion.copy(balls[i].quaternion);
+      if(balls[i].sleepState === 2) {
+        console.log('Removing mesh...')
+        mesh.geometry.dispose()
+        mesh.material.dispose()
+        ctx.scene.remove(mesh)
+        ballMeshes.splice(i, 1)
+        balls.splice(i, 1)
+      } else {
+        mesh.position.copy(balls[i].position);
+        mesh.quaternion.copy(balls[i].quaternion);
+      }
     })
 
-    boxMeshes.forEach((mesh, i) => {
+    boxMeshGroup.children.forEach((mesh, i) => {
       mesh.position.copy(boxes[i].position);
       mesh.quaternion.copy(boxes[i].quaternion);
     })
 
     ctx.avatar.position.copy(ctx.sphereBody.position)
-    ctx.avatar.quaternion.copy(ctx.sphereBody.quaternion)
-    let quat = ctx.avatar.quaternion.clone().conjugate()
-    ctx.avatar.children[0].quaternion.copy(quat)
-    ctx.avatar.children[1].quaternion.copy(quat)
+    ctx.avatar.children[0].quaternion.copy(ctx.sphereBody.quaternion)
+  
     ctx.controls.update(Date.now() - start);
 
-    start = Date.now()
+    ctx.frustum = new THREE.Frustum();
+    let cameraViewProjectionMatrix = new THREE.Matrix4();
     
+    // every time the camera or objects change position (or every frame)
+
+    ctx.camera.updateMatrixWorld(); // make sure the camera matrix is updated
+    ctx.camera.matrixWorldInverse.getInverse( ctx.camera.matrixWorld );
+    
+    cameraViewProjectionMatrix.multiplyMatrices( 
+      ctx.camera.projectionMatrix, 
+      ctx.camera.matrixWorldInverse 
+    );
+    ctx.frustum.setFromMatrix( cameraViewProjectionMatrix );
+    
+    // frustum is now ready to check all the objects you need
+  
+    start = Date.now() 
   }
+
+  function tick() {
+    setTimeout(function() {
+      console.log(boxMeshGroup)
+      if(boxMeshGroup.children) {
+        let int = boxMeshGroup.children
+          .map(mesh => ctx.frustum.intersectsObject(mesh))
+          .filter(visible => visible)
+
+        console.log(int)
+        if(!int || int.length < 2) {
+          createBoxMeshGroup()
+        }
+      } else {
+        createBoxMeshGroup()
+      }
+  
+      tick()
+    }, 2000)
+  }
+  tick()
 
   function render() {    
     updatePhysics()
@@ -325,7 +358,7 @@ function World() {
     //document.addEventListener( 'mozpointerlockerror', pointerlockerror, false );
     //document.addEventListener( 'webkitpointerlockerror', pointerlockerror, false );
     
-    ctx.controls = new PointerLockControls(ctx.camera, ctx.sphereBody);
+    ctx.controls = new PointerLockControls(ctx.camera, ctx.sphereBody, ctx.avatar);
   
     ctx.scene.add(ctx.controls.getObject())
     console.log(ctx)

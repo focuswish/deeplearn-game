@@ -9,7 +9,8 @@ import {
 
 export function initCannon(ctx) {
   let world = new CANNON.World();
-
+  world.allowSleep = true;
+  
   world.quatNormalizeSkip = 0;
   world.quatNormalizeFast = false;
   
@@ -33,14 +34,15 @@ export function initCannon(ctx) {
   
   let matrix = []
   let vert = ctx.tiles[0].geometry.vertices
-  console.log('vert', vert)
+
   let index = 0;
   
   for(let x = 0; x < Math.sqrt(vert.length); x++) {
     matrix[x] = []
 
     for(let y = 0; y < Math.sqrt(vert.length); y++) {
-      matrix[x][y] = vert[index].z
+      matrix[x][y] = vert[index].z;
+      //matrix[x][y] = 0;
       index++
     }
   } 
@@ -57,26 +59,15 @@ export function initCannon(ctx) {
   
   world.addContactMaterial(physicsContactMaterial);
 
-  //cylinder
-
-  let cylinderShape = new CANNON.Cylinder (0.6, 0.6, 1, 8)
-  //let cylinderBody = new CANNON.Body({
-  //  mass: 0,
-  //  material: physicsMaterial
-  //})
-
   // Create a sphere
   let sphereShape = new CANNON.Sphere(1)
-  let sphereBody = new CANNON.Body({ mass: 1, material: physicsMaterial });
+  let sphereBody = new CANNON.Body({ mass: 1, material: physicsMaterial })
   
   sphereBody.addShape(sphereShape)
-  //sphereBody.addShape(cylinderShape)
 
-  sphereBody.position.set(0,0,1);
+  sphereBody.position.set(0,0,5);
   sphereBody.linearDamping = 0.9;
-  //sphereBody.fixedRotation = true;
-  sphereBody.updateMassProperties();
-  console.log(sphereBody)
+
   world.addBody(sphereBody)
 
   let heightfieldShape = new CANNON.Heightfield(matrix, {
@@ -103,47 +94,96 @@ export function initCannon(ctx) {
     32
   )
   
-  let shootVelo = 20;
+  let shootVelo = 10;
   
   function getShootDirection(event, ctx) {
    let mouse = new THREE.Vector2();
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1; 
-  
+
+    // get offset between camera and hero
+
+    let worldDirection = ctx.camera.getWorldDirection().clone()  
+    let offset = worldDirection.clone().normalize().multiplyScalar(3)
+
     let raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, ctx.camera);
     let intersects = raycaster.intersectObjects(ctx.scene.children);
+    
+    let distance = intersects[0] && intersects[0].distance || 10
 
-    let {
-      x, y, z
-    } = raycaster.ray.direction
+    let adjustedDirection = raycaster.ray.direction
+      .clone()
+      .multiplyScalar(distance)
+      .sub(offset)
+
+    let {x,y,z} = adjustedDirection
 
     if(intersects && intersects.length > 0) {
-
       let intersect = intersects[0]
-      intersect.object.material.color.set(0xdddddd)
-
-      x *= (5 + intersect.distance)/intersect.distance
-      
+      if(intersect.object.name === 'box') {
+        intersect.object.material.color.set(0xff0000)      
+      }
     }
 
-    z = Math.pow(mouse.y + 2, 2);
-
-    console.log(raycaster)
-    console.log(intersects)
-    
+    z = z/Math.pow(shootVelo, 2)
     return {x, y, z}
   }
 
   let balls = []
   let ballMeshes = []
   let boxes = []
-  let boxMeshes = []
-
-  let position = [-25, 5, 0]
+  let position = [-25, 5, 2]
   let v = [...position]
+
+  let boxMeshGroup = new THREE.Group()
+
+  function createBoxMeshGroup() {
+    let worldDirection = ctx.camera.getWorldDirection().clone()  
+    let offset = worldDirection.clone().normalize().multiplyScalar(5)
+    let {x,y} = ctx.avatar.position.clone().add(offset)
+
+    console.log({worldDirection, offset, x, y})
+    for(let i = 0; i < 10; i++) {
+      let dx = i % 5 * 0.5
+
+      for(let j = 0; j < 10; j++) {
+         // THREE
+        let box = Box()
+        boxMeshGroup.add(box.mesh)
+        
+        // CANNON
+        let dy = j % 5 * 0.5
+        box.body.position.set(x + dx, y + dy, 1)
+      
+        world.addBody(box.body)
+        boxes.push(box.body)
+      }
+
+      setTimeout(function() {
+        boxes.forEach(box => world.remove(box))
+        boxes = []
+        
+        boxMeshGroup.children.forEach(mesh => {
+          boxMeshGroup.remove(mesh)
+          mesh.geometry.dispose()
+          mesh.material.dispose()
+          ctx.scene.remove(mesh)
+        })
+      }, 5000)
+    }
+    
+    ctx.scene.add(boxMeshGroup)
+    
+    return {
+      boxMeshGroup,
+      boxes
+    }
+  }
+
+  //boxMeshes.push(box.mesh)
  
-  for(let k = 0; k < 10; k++) {
+  /*for(let k = 0; k < 10; k++) {
     v[0] += 5;
     for(let i = 0; i < 8; i++) {
       v[2] = position[2]
@@ -163,7 +203,7 @@ export function initCannon(ctx) {
         boxMeshes.push(box.mesh)
       }    
     }
-  }
+  }*/
 
   let material = new THREE.MeshLambertMaterial({ color: 0xffffff })
   
@@ -173,8 +213,10 @@ export function initCannon(ctx) {
       x, y, z
     } = sphereBody.position;
 
-    let ballBody = new CANNON.Body({ mass: 1 });
-    ballBody.addShape(ballShape);
+    let ballBody = new CANNON.Body({ mass: 2 });
+    setTimeout(() => ballBody.sleep(), 2000)
+
+    ballBody.addShape(ballShape)
     
     let ballMesh = new THREE.Mesh( ballGeometry, material );
     
@@ -196,9 +238,10 @@ export function initCannon(ctx) {
       shootDirection.z
     )
     
-    x += shootDirection.x * (sphereShape.radius * 1.02 + ballShape.radius);
-    y += shootDirection.y * (sphereShape.radius * 1.02 + ballShape.radius);
-  
+    //x += Math.sign(shootDirection.x) * (sphereShape.radius * 1.02 + ballShape.radius);
+    //y += Math.sign(shootDirection.y) * (sphereShape.radius * 1.02 + ballShape.radius);
+    //z += (sphereShape.radius * 1.02 + ballShape.radius);
+    
     //z += shootDirection.z * (sphereShape.radius * 1.02 + ballShape.radius);
     //z += (sphereShape.radius * 1.02 + ballShape.radius);
     ballBody.position.set(x,y,z);
@@ -209,8 +252,9 @@ export function initCannon(ctx) {
     world,
     ballMeshes,
     balls,
-    boxMeshes,
     boxes,
-    sphereBody
+    sphereBody,
+    boxMeshGroup,
+    createBoxMeshGroup
   }
 }
