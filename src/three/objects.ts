@@ -5,6 +5,7 @@ import {
   flatten,
   chunk
 } from 'lodash'
+import * as CANNON from 'cannon'
 
 export function Wood(x = 0.1, y = 2, z = 0.2) {
   let wood : any = {}
@@ -65,6 +66,38 @@ export function Stone(x = 0.5, y = 2, z = 1) {
   return stone;
 }
 
+export function Box() {
+  let dimensions = [0.25, 0.25, 0.25]
+  // CANNON
+
+  let cannonBoxShape = new CANNON.Box(new CANNON.Vec3(...dimensions))
+  let body = new CANNON.Body({ mass: 5 })
+
+  body.addShape(cannonBoxShape)
+
+  // THREE
+  let texture = new THREE.TextureLoader().load(BASE_ASSET_URL + 'crate.jpg')
+  texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.LinearMipMapLinearFilter;
+
+  let mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(...dimensions.map(d => d * 2)),
+    new THREE.MeshLambertMaterial({ 
+      map: texture, 
+      vertexColors: THREE.VertexColors 
+    }) 
+  )
+
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+
+  return { mesh, body }
+}
+
+export function generateCrates(ctx) {
+
+}
+
 export function generateTerrainObjects(ctx, anchor) {
   let { scene } = ctx;
   // stone
@@ -110,11 +143,17 @@ export function generateTerrainObjects(ctx, anchor) {
 
 export function generateTrees(ctx, anchor) {
   let { terrain, scene } = ctx;
-
-  for(let i = 0; i < 10; i++) {
+  
+  for(let i = 0; i < 100; i++) {
     let tree = Tree()
     let scale = Math.random() * (1 - 0.5) + 0.5;
-
+    
+    if(Math.abs(anchor[0]) > 40) {
+      anchor[1] += 0.5;
+    } else {
+      anchor[0] += 0.5
+    }
+    
     tree.rotation.set(Math.PI / 2, Math.PI / 2, 0)
     tree.scale.set(scale, scale, scale)
     tree.position.set(...anchor)

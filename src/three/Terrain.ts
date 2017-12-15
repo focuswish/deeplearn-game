@@ -31,7 +31,7 @@ function Terrain (params = {}) {
     map: texture ? texture : null
   })
 
-  let matrix = [10, 10, 10, 10]
+  let matrix = [100, 100, 100, 100]
   let rows = matrix[2]
   let columns = matrix[3]
 
@@ -42,7 +42,8 @@ function Terrain (params = {}) {
     
     for (let i = 0; i <= rows; i++) { 
       for (let j = 0; j <= columns; j++) { 
-        let alt = terrain.altitude[index] || 0;
+        //let alt = terrain.altitude[index] || 0;
+        let alt = terrain.altitude[i][j]
         geometry.vertices[index].setZ(alt)  
         index++;
       } 

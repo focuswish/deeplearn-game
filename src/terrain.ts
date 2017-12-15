@@ -19,6 +19,8 @@ import {
   generateCampfire
 } from './three/objects'
 
+import PointerLockControls from './util/PointerLockControls'
+
 function segment(matrix, vertices) {  
   let n = Math.sqrt(vertices.length)
 
@@ -60,13 +62,14 @@ function segmentTopography(topography, matrix) {
 function World() {
   let ctx : any = {}
   ctx.worldSize = 100;
-  ctx.tiles = 100;
+  ctx.tiles = []
   ctx.terrain = {}
+  ctx.controls = {}
   ctx.scene = new THREE.Scene()
   ctx.camera = new THREE.PerspectiveCamera(
     75, 
     window.innerWidth / window.innerHeight, 
-    1, 
+    0.1, 
     1000
   );  
   ctx.renderer = new THREE.WebGLRenderer()
@@ -76,10 +79,10 @@ function World() {
   document.body.appendChild(ctx.renderer.domElement);
 
   ctx.zoom = 1;
-  ctx.tilt = 2;
+  ctx.tilt = -3;
 
   ctx.camera.position.x = 0;
-  ctx.camera.position.y = 0;
+  ctx.camera.position.y = ctx.tilt;
   ctx.camera.position.z = ctx.zoom
   ctx.camera.lookAt(0, 0, 0);
   ctx.camera.up.set(0, 0, 1);
@@ -98,23 +101,81 @@ function World() {
   }
 
   function randomPositionOnTerrain() {
-    let x = Math.round(Math.random() * 5)
-    let y = Math.round(Math.random() * 5)
+    let x = Math.round(Math.random() * 100) - 50
+    let y = Math.round(Math.random() * 100) - 50
     let z = getZ(x, y)
     return [x, y, z]
   }
 
-  function avatar() {
-    let geometry = new THREE.SphereGeometry(0.2, 32, 32 );
+  ctx.randomPositionOnTerrain = randomPositionOnTerrain
 
+  function avatar() {
     let material = new THREE.MeshLambertMaterial({ 
-      color: 0x00bfff,
+      color: 0xfffafa,
       flatShading: true,
       vertexColors: THREE.VertexColors 
     });
 
-    ctx.avatar = new THREE.Mesh(geometry, material);  
-    ctx.scene.add(ctx.avatar) 
+    let cylinderMaterial = new THREE.MeshBasicMaterial()
+    cylinderMaterial.opacity = 0.01;
+
+    let cylinder = new THREE.Mesh(
+      new THREE.CylinderGeometry( 0.6, 0.6, 1.25), 
+      cylinderMaterial
+    )
+
+    cylinder.rotation.set(0, 0, Math.PI / 2)
+
+    let avatarGeometry = new THREE.Geometry()
+    
+    let bottom = 0.60;
+    let middle = 0.40;
+    let top = 0.25;
+
+    let sphereGeometry1 = new THREE.DodecahedronGeometry(top/2, 0);
+    let sphereGeometry2 = new THREE.DodecahedronGeometry(middle/2, 1);
+    let sphereGeometry3 = new THREE.DodecahedronGeometry(bottom/2, 1);
+    
+    let sphereMesh1 = new THREE.Mesh(sphereGeometry1, material)
+    let sphereMesh2 = new THREE.Mesh(sphereGeometry2, material)
+    let sphereMesh3 = new THREE.Mesh(sphereGeometry3, material)
+    
+    sphereMesh1.geometry.translate(0, 0, 0.80)
+    sphereMesh2.geometry.translate(0, 0, 0.50)
+    
+    //avatarGeometry.merge(sphereMesh1.geometry, sphereMesh1.matrix)
+    //avatarGeometry.merge(sphereMesh2.geometry, sphereMesh2.matrix)
+    //avatarGeometry.merge(sphereMesh3.geometry, sphereMesh3.matrix)
+    //avatarGeometry.merge(cylinder.geometry, cylinder.matrix)
+
+    //let avatarMesh = new THREE.Mesh(avatarGeometry, material)
+    //let avatarMesh = sphereMesh3
+
+    let twig1 = Wood(0.1, 2, 0.1)
+    twig1.scale.set(0.4, 0.4, 0.4)
+    twig1.geometry.translate(0, 0, 1)
+    twig1.rotation.set(0, 0, Math.PI / 2)
+    sphereMesh2.add(twig1)
+
+    ctx.avatar = sphereMesh3
+    ctx.avatar.castShadow = true;
+
+    ctx.avatar.add(sphereMesh1)
+    ctx.avatar.add(sphereMesh2)
+    //ctx.avatar.geometry.normalize()
+    ctx.scene.add(ctx.avatar)
+    //ctx.scene.add(sphereMesh1)
+    //ctx.scene.add(sphereMesh2)
+    ctx.scene.updateMatrixWorld();
+    
+    //let vector = new THREE.Vector3();
+    //vector.setFromMatrixPosition(ctx.avatar.matrixWorld)
+    //twig1.position.copy(vector)
+    console.log('sphereMesh1',sphereMesh1)
+    console.log('sphereMesh2',sphereMesh2)
+    console.log('sphereMesh3',sphereMesh3)
+    console.log(ctx)
+    
   }
 
   function light() {
@@ -132,9 +193,21 @@ function World() {
   function createMap() {
   
     ctx.terrain.geometry = new THREE.Geometry();
-    let altitude = fractal.generateTerrain(100, 100, 0.5)
+    let altitude = fractal.generateTerrain(100, 100, 0.4)
 
-    for(let i = 0; i < 1; i++) {
+    let terrain = Terrain({
+      position: [0, 0, 0],
+      color: 0x7cfc00,
+      altitude: altitude
+    })
+
+    ctx.tiles.push(terrain)
+    ctx.scene.add(terrain)
+    ctx.terrain.geometry.vertices = ctx.terrain.geometry.vertices.concat(
+      terrain.geometry.vertices
+    )
+
+    /*for(let i = 0; i < 1; i++) {
       for(let j = 0; j < 1; j++) {
         
         let terrain = Terrain({
@@ -143,38 +216,42 @@ function World() {
           altitude: segmentTopography(altitude, [i, j])
         })
 
+        ctx.tiles.push(terrain)
+
         ctx.scene.add(terrain)
+
         ctx.terrain.geometry.vertices = ctx.terrain.geometry.vertices.concat(
           terrain.geometry.vertices
         )
 
       }
-    }
+    }*/
   }
 
   //let sky = new THREE.TextureLoader().load(assets.sky)
   //ctx.scene.background = sky;
   //ctx.scene.background = new THREE.Color(0x191970)
-  ctx.scene.background = new THREE.Color( 0xefd1b5 );
+  ctx.scene.background = new THREE.Color( 0x00bfff );
   ctx.scene.fog = new THREE.FogExp2( 0x191970, 0.0025);
 
   createMap()
 
+  let { 
+    world, 
+    ballMeshes, 
+    balls, 
+    boxes,
+    boxMeshes,
+    sphereBody 
+  } = initCannon(ctx)
+  
   light()
-  
   avatar()
-  
   generateTrees(ctx, randomPositionOnTerrain())
-  
-  //generateTerrainObjects(ctx, randomPositionOnTerrain())
-  
-  //generateCampfire(ctx)
+  generateTerrainObjects(ctx, randomPositionOnTerrain())
+  generateCampfire(ctx)
 
   // CANNON
-
-  let { world, ballMeshes, balls, sphereBody } = initCannon(ctx)
-
-  console.log({world, ballMeshes, balls, sphereBody})
   
   ctx.world = world;
   ctx.sphereBody = sphereBody;
@@ -186,45 +263,95 @@ function World() {
   }
 
   let timeStep = 1/60
-
+  let start = Date.now()
+  
   function updatePhysics() {
     // Step the physics world
     ctx.world.step(timeStep)
     
-    for(var i=0; i< balls.length; i++ ){
-      ballMeshes[i].position.copy(balls[i].position);
-      ballMeshes[i].quaternion.copy(balls[i].quaternion);
-    }
+    ballMeshes.forEach((mesh, i) => {
+      mesh.position.copy(balls[i].position);
+      mesh.quaternion.copy(balls[i].quaternion);
+    })
 
-    // Copy coordinates from Cannon.js to Three.js
+    boxMeshes.forEach((mesh, i) => {
+      mesh.position.copy(boxes[i].position);
+      mesh.quaternion.copy(boxes[i].quaternion);
+    })
+
     ctx.avatar.position.copy(ctx.sphereBody.position)
     ctx.avatar.quaternion.copy(ctx.sphereBody.quaternion)
+    let quat = ctx.avatar.quaternion.clone().conjugate()
+    ctx.avatar.children[0].quaternion.copy(quat)
+    ctx.avatar.children[1].quaternion.copy(quat)
+    ctx.controls.update(Date.now() - start);
+
+    start = Date.now()
+    
   }
 
   function render() {    
     updatePhysics()
     ctx.renderer.render(ctx.scene, ctx.camera);
   }
-  
+
   function animate() {
+
     requestAnimationFrame(animate);
     let {
       position: {
         x, y, z
       }
     } = ctx.avatar
-
-    ctx.camera.position.set(x, y - ctx.tilt, z + ctx.zoom)
-    ctx.camera.lookAt(x, y, z)  
-
+    ctx.camera.position.setZ(z + ctx.zoom)
+    //ctx.camera.position.setY(y + ctx.tilt)
+    //ctx.camera.position.set(x, y - ctx.tilt, z + ctx.zoom)
+    //ctx.camera.lookAt(x, y, z)  
     render()
   }
 
   ctx.init = () => {
     window.addEventListener('resize', onWindowResize, false)
+    
+    let pointerlockchange = function ( event ) {
+      console.log(event)
+      ctx.controls.enabled = true;
+    }
+
+    document.addEventListener( 'pointerlockchange', pointerlockchange, false );
+    document.addEventListener( 'mozpointerlockchange', pointerlockchange, false );
+    document.addEventListener( 'webkitpointerlockchange', pointerlockchange, false );
+    //document.addEventListener( 'pointerlockerror', pointerlockerror, false );
+    //document.addEventListener( 'mozpointerlockerror', pointerlockerror, false );
+    //document.addEventListener( 'webkitpointerlockerror', pointerlockerror, false );
+    
+    ctx.controls = new PointerLockControls(ctx.camera, ctx.sphereBody);
+  
+    ctx.scene.add(ctx.controls.getObject())
+    console.log(ctx)
     animate()
-   
     window.addEventListener('keydown', function(e) {
+      let position = ctx.sphereBody.position.toArray().map(p => Math.round(p))
+
+      document.getElementById('info').innerHTML = `<span>${position.join(', ')}<span>` ;
+
+      switch(e.code) {
+        case 'Equal':
+          ctx.zoom--
+        break
+      case 'Minus':
+          ctx.zoom++
+        break
+      case 'Backquote':
+        if(ctx.controls.enabled) {
+          ctx.controls.enabled = false;
+        } else {
+          ctx.controls.enabled = true;
+        }
+        break;
+      }
+    })
+    /*window.addEventListener('keydown', function(e) {
       let { vertices } = ctx.terrain.geometry
 
       let position = ctx.sphereBody.position.toArray()
@@ -238,14 +365,14 @@ function World() {
       switch (e.code) {
         case 'ArrowUp':
           position[1] += -0.2
-          ctx.sphereBody.applyImpulse(
+          ctx.sphereBody.applyForce(
             new CANNON.Vec3(0, force, 0),
             new CANNON.Vec3(...position)
           )
           break;
         case 'ArrowRight':
           position[0] += -0.2
-          ctx.sphereBody.applyImpulse(
+          ctx.sphereBody.applyForce(
             new CANNON.Vec3(force, 0, 0),
             new CANNON.Vec3(...position)
           )
@@ -253,7 +380,7 @@ function World() {
         case 'ArrowLeft':
           //-y
           position[0] += 0.2
-          ctx.sphereBody.applyImpulse(
+          ctx.sphereBody.applyForce(
             new CANNON.Vec3(force * -1, 0, 0),
             new CANNON.Vec3(...position)
           )
@@ -261,10 +388,19 @@ function World() {
         case 'ArrowDown':
           //+x
           position[1] += 0.2
-          ctx.sphereBody.applyImpulse(
+          ctx.sphereBody.applyForce(
             new CANNON.Vec3(0, force * -1, 0),
             new CANNON.Vec3(...position)
           )
+          break;
+          
+        case 'Space':
+          position[z] += -0.2
+          ctx.sphereBody.applyForce(
+            new CANNON.Vec3(0, 0, 20),
+            new CANNON.Vec3(...position)
+          )
+          break;
           
         case 'Equal':
           ctx.zoom--
@@ -273,7 +409,7 @@ function World() {
           ctx.zoom++
           break
       }
-    })
+    })*/
     
     return ctx;
   }
@@ -290,6 +426,7 @@ declare global {
     Terrain: any;
     Sprite: any;
     World: any;
+    
   }
 }
 
