@@ -4,9 +4,50 @@ const bodyParser = require('body-parser')
 const fs = require('fs')
 
 const app = express()
+const server = require('http').createServer(app)
+const WebSocket = require('ws')
+const wss = new WebSocket.Server({ server })
 
 app.use('/', express.static('dist'));
 app.use(bodyParser.json())
+
+
+const interval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) return ws.terminate()
+
+    ws.isAlive = false
+    ws.ping('', false, true)
+  })
+}, 30000)
+
+function heartbeat() {
+  this.isAlive = true
+}
+
+const sockets = {}
+
+wss.broadcast = function broadcast(data) {
+  wss.clients.forEach(function each(client) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(data);
+    }
+  });
+};
+
+wss.on('connection', function connection(ws) {
+  ws.isAlive = true
+  ws.on('pong', heartbeat)
+  ws.on('message', function incoming(data) {
+    // Broadcast to everyone else.
+    wss.clients.forEach(function each(client) {
+      if (client !== ws && client.readyState === WebSocket.OPEN) {
+        client.send(data);
+      }
+    });
+  });
+});
+
 
 app.post('/save', (req, res) => {
   const body = req.body;
@@ -14,6 +55,7 @@ app.post('/save', (req, res) => {
   res.sendStatus(200)
 })
 
-app.listen(3000, () => {
+
+server.listen(3000, () => {
   console.log(`listening on 3000`)
 })

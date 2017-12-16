@@ -1,13 +1,13 @@
 import * as CANNON from 'cannon'
 import * as THREE from 'three'
+import Base from '../Base'
 import {
   Box 
-} from './objects'
+} from '../components/objects'
 import { 
   chunk
 } from 'lodash'
-import Base from './Base'
-import Tree from '../tree'
+import Tree from '../components/Tree'
 
 export function spawnTrees(ctx, cannonContext) {
   let { terrain, scene } = ctx;
@@ -21,7 +21,6 @@ export function spawnTrees(ctx, cannonContext) {
       let scale = Math.random() * (1 - 0.5) + 0.5;
       
       anchor = anchor.add(new THREE.Vector3(0, 0.5, 0))
-      console.log(`anchor - ${i}`, anchor)
       tree.rotation.set(Math.PI / 2, Math.PI / 2, 0)
       tree.scale.set(scale, scale, scale)
       tree.position.copy(anchor)
@@ -141,7 +140,6 @@ function spawnBoxes(ctx, cannonContext) {
     let { vertices } = geometry;
     vertices.forEach(vector => {
       anchor.add(vector)
-      console.log(anchor)
       let box = Box()
       
       // CANNON
@@ -224,6 +222,13 @@ export function Physics(ctx) {
   
   let world = createDefaultPhysicsWorld()
   cannonContext.world = world;
+  
+  // Create a sphere
+  let bottomSnowman = ctx.scene.getObjectByName('snowman/bottom', true)
+  bottomSnowman.children[0].geometry.computeBoundingSphere()
+  
+  let { boundingSphere } = bottomSnowman.children[0].geometry;
+  let playerSphereBody = createPlayerSphere(cannonContext, boundingSphere)
 
   let base = Base(ctx, cannonContext)
   cannonContext.base = base;
@@ -233,14 +238,6 @@ export function Physics(ctx) {
 
   let heightfield = addHeightfield(ctx, cannonContext)
 
-
-  // Create a sphere
-  let bottomSnowman = ctx.scene.getObjectByName('snowman/bottom', true)
-  bottomSnowman.children[0].geometry.computeBoundingSphere()
-  
-  console.log('bottomSnowman', bottomSnowman.children[0]) 
-  let { boundingSphere } = bottomSnowman.children[0].geometry;
-  let playerSphereBody = createPlayerSphere(cannonContext, boundingSphere)
   
   let shootVelo = 10;
   
@@ -248,7 +245,6 @@ export function Physics(ctx) {
   cannonContext.spawnTrees = spawnTrees(ctx, cannonContext)
 
   window.addEventListener('click',function(e) {
-    console.log('click', e)
     let {
       x, y, z
     } = playerSphereBody.position;

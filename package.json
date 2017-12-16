@@ -2,18 +2,20 @@
   "name": "deeplearn-example",
   "version": "0.0.1",
   "description": "Starter project for using deeplearn.js with TypeScript",
+  "engines": {
+    "node": "8.1.x"
+  },
   "dependencies": {
     "cannon": "^0.6.2",
     "deeplearn": "~0.3.3",
     "deeplearn-graph-serializer": "^0.3.1",
     "fractal-terrain-generator": "^0.0.2",
     "gl": "^4.0.4",
-    "improved-noise": "^0.0.3",
     "isomorphic-fetch": "^2.2.1",
     "lodash": "^4.17.4",
-    "sentiment": "^4.1.0",
     "three": "^0.88.0",
-    "three-trackballcontrols": "^0.0.7"
+    "uuid": "^3.1.0",
+    "ws": "^3.3.2"
   },
   "devDependencies": {
     "browserify": "^14.5.0",
@@ -28,11 +30,12 @@
   "scripts": {
     "prep": "yarn && mkdirp dist",
     "package": "tsc -d",
-    "watch": "watchify src/terrain.ts -p [tsify] -v --debug -o dist/bundle.js",
-    "build": "browserify src/terrain.ts -p [tsify] -o dist/bundle.js",
+    "watch": "watchify src/App.ts -p [tsify] -v --debug -o dist/bundle.js",
+    "build": "browserify src/App.ts -p [tsify] -o dist/bundle.js",
     "lint": "tslint -p . -t verbose",
     "deploy": "yarn build && uglifyjs dist/bundle.js -c -m -o dist/bundle.min.js",
-    "dev": "node --harmony server"
+    "dev": "node --harmony server",
+    "start": "node --harmony server"
   },
   "license": "Apache-2.0"
 }

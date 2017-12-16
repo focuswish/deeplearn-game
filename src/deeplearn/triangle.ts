@@ -1,8 +1,4 @@
 
-
-//let theta = Math.atan(dy/dx)
-//theta = toDeg(theta)
-
 function Triangle() {
   const ctx : any = {}
 

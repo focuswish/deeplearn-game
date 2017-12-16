@@ -25,9 +25,8 @@ export default function Base(ctx, cannonContext) {
   }
 
   function getDistanceFromAvatar(position) {
-    let snowmanPosition = ctx.scene.getObjectByName('snowman').position;
+    let snowmanPosition = ctx.avatar.position;
     let distance = snowmanPosition.distanceTo(position)
-    console.log('distance', distance)
     return distance;
   }
 
@@ -44,7 +43,6 @@ export default function Base(ctx, cannonContext) {
       .add(pointOnPerimeter)
       .add(new THREE.Vector3(0, 0, -0.2))
 
-    console.log({pointOnPerimeter, vector})
     return vector
   }
 
@@ -148,7 +146,6 @@ export default function Base(ctx, cannonContext) {
   }
 
   base.cullDistantObjects = (entities) => {
-    console.log("base.cullDistantObjects()", entities)
 
     let horizon = entities.map((entity, i) => ({
       distance: getDistanceFromAvatar(entity.mesh.position),
@@ -166,9 +163,13 @@ export default function Base(ctx, cannonContext) {
     let { store, frustum } = base;
     
     setTimeout(() => {
-      console.log('base.tick()')
-      console.log('base', base)
-      console.log('ctx', ctx)
+      let player = cannonContext.playerSphereBody;
+      console.log(player)
+      ctx.ws.send(JSON.stringify({
+        position: player.position,
+        velocity: player.velocity,
+        id: ctx.avatar.name
+      }))
 
       if(Object.keys(store).length > 0) {
         Object.keys(store).forEach(key => {
@@ -187,9 +188,7 @@ export default function Base(ctx, cannonContext) {
             base.cullDistantObjects(cache.entities)
           }
           
-          if(visibleCount < 1) {
-            console.log('should respawn')
-    
+          if(visibleCount < 1) {    
             if(cache.respawn) {
               if(cache.entities.length > 40) base.removeMeshesByName(key)
               cache.respawn()

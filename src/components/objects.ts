@@ -1,6 +1,6 @@
 import * as THREE from 'three'
-import { BASE_ASSET_URL, assets } from './constants'
-import Tree from '../tree'
+import { BASE_ASSET_URL, assets } from '../constants'
+import Tree from './Tree'
 import {
   flatten,
   chunk

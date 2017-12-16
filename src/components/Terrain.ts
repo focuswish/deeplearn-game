@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { BASE_ASSET_URL } from './constants'
+import { BASE_ASSET_URL } from '../constants'
 
 function Terrain (params = {}) {
   let terrain : any = {

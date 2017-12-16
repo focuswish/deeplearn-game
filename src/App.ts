@@ -1,24 +1,19 @@
 //scene and camera setup
 import * as THREE from 'three'
-import * as ImprovedNoise from 'improved-noise'
-import * as TrackballControls from 'three-trackballcontrols'
 import * as fractal from 'fractal-terrain-generator'
-import Sprite from './sprite'
-import Tree from './tree';
-import { sample, findIndex, flatten, chunk, take, tail} from 'lodash'
+import { sample, findIndex, flatten, chunk, take, tail } from 'lodash'
 import * as CANNON from 'cannon'
-
-import Terrain from './three/Terrain'
-import { Physics } from './three/physics'
+import { Physics } from './Physics'
 import {
   Rock, 
   Wood, 
   Stone, 
   generateTerrainObjects,
   generateCampfire
-} from './three/objects'
-import Avatar from './three/Avatar'
-
+} from './components/objects'
+import Terrain from './components/Terrain'
+import Avatar from './components/Avatar'
+import Tree from './components/Tree';
 import PointerLockControls from './util/PointerLockControls'
 
 function segment(matrix, vertices) {  
@@ -88,6 +83,12 @@ function World() {
   ctx.camera.up.set(0, 0, 1);
   
   THREE.Object3D.DefaultUp.set(0, 0, 1)
+
+
+  let host = window.document.location.host.replace(/:.*/, '');
+  ctx.ws = new WebSocket('ws://' + host + ':3000');
+  ctx.data = {}
+  ctx.players = []
 
   function getZ (x, y) {
     let { terrain: { geometry: { vertices } } } = ctx;
@@ -206,6 +207,13 @@ function World() {
     ctx.avatar.position.copy(ctx.playerSphereBody.position)
     ctx.avatar.children[0].quaternion.copy(ctx.playerSphereBody.quaternion)
   
+    if(Object.keys(ctx.data).length > 0) {
+      Object.keys(ctx.data).forEach(key => {
+        let player = ctx.data[key]
+        player.mesh.position.copy(player.body.position)
+        player.mesh.children[0].quaternion.copy(player.body.quaternion)
+      })
+    }
     ctx.controls.update(Date.now() - start);
 
     base.update()
@@ -269,6 +277,64 @@ function World() {
         break;
       }
     })
+
+    ctx.ws.onmessage = function (event) {
+      let message = JSON.parse(event.data)
+      
+      if(message.id === ctx.avatar.name) {
+        cannonContext.playerSphereBody.body.position.set(
+          message.position.x,
+          message.position.y,
+          message.position.z
+        )
+        cannonContext.playerSphereBody.body.velocity.set(
+          message.velocity.x,
+          message.velocity.y,
+          message.velocity.z
+        )
+      }
+
+      if(!ctx.data[message.id]) ctx.data[message.id] = {}
+      
+      let player = ctx.data[message.id]
+      player.message = message;
+      
+      if(!player.didSpawn) {
+        let snowman = Avatar()
+        ctx.scene.add(snowman)
+        ctx.data[message.id].mesh = snowman
+
+        let playerSphereShape = new CANNON.Sphere(0.3)
+        let playerSphereBody = new CANNON.Body({ 
+          mass: 1, 
+          material: cannonContext.physicsMaterial 
+        })
+        
+        playerSphereBody.addShape(playerSphereShape)
+        playerSphereBody.linearDamping = 0.9;
+      
+        cannonContext.world.addBody(playerSphereBody)
+        ctx.data[message.id].body = playerSphereBody
+        ctx.data[message.id].didSpawn = true;
+      } 
+
+      let { position, velocity } = player.message;
+
+      player.body.position.set(
+        position.x,
+        position.y,
+        position.z
+      )
+
+      player.body.velocity.set(
+        velocity.x,
+        velocity.y,
+        velocity.z
+      )
+
+      console.log(ctx.data)
+      
+    };
   
     return ctx;
   }
@@ -277,7 +343,6 @@ function World() {
 }
 
 window.World = World
-window.Sprite = Sprite;
 
 declare global {
   interface Window { 
