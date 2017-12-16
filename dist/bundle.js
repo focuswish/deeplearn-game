@@ -76360,7 +76360,7 @@ function Base(ctx, cannonContext) {
                 didSpawn: ctx.data[key].didSpawn,
                 isOtherPlayer: ctx.data[key].isOtherPlayer,
                 id: ctx.data[key].id,
-                timestamp: Date.now()
+                timestamp: new Date().getTime() / 1000
             }));
             ctx.ws.send(JSON.stringify(wsData));
             if (Object.keys(store).length > 0) {

@@ -360,6 +360,9 @@ async function World() {
           currentPosition,
           currentVelocity
         })*/
+        if(player.isOtherPlayer) {
+          
+        }
         player.body.position.copy(interpolatedPosition)
         player.body.velocity.copy(interpolatedVelocity)
    
