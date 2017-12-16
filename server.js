@@ -8,6 +8,8 @@ const server = require('http').createServer(app)
 const WebSocket = require('ws')
 const wss = new WebSocket.Server({ server })
 
+const PORT = process.env.PORT || 3000;
+
 app.use('/', express.static('dist'));
 app.use(bodyParser.json())
 
@@ -56,6 +58,6 @@ app.post('/save', (req, res) => {
 })
 
 
-server.listen(3000, () => {
-  console.log(`listening on 3000`)
+server.listen(PORT, () => {
+  console.log(`listening on ${PORT}`)
 })
