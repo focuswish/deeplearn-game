@@ -13689,279 +13689,6 @@ World.prototype.clearForces = function(){
 });
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],2:[function(require,module,exports){
-module.exports = require('./lib/terrain.js');
-
-},{"./lib/terrain.js":3}],3:[function(require,module,exports){
-/**
- * @fileoverview Random fractal terrain generator.
- * @author Xueqiao Xu <xueqiaoxu@gmail.com>
- */
-
-// create local scope
-(function() {
-
-  /**
-   * Generate fractal terrain.
-   * @param {number} width - Width of rectangle.
-   * @param {number} height - Height of rectangle.
-   * @param {number} smoothness - Higher this value, smoother the terrain.
-   *      recommended value is 1.
-   * @return {Array.<Array.<int>>} A two-dimensional array holding the elevations 
-   *     of the vertices of the terrain.
-   */
-  function generateTerrain(width, height, smoothness) {
-    var smoothness = typeof smoothness === 'undefined' ? 1 : smoothness;
-    var size = smallestPowerOfTwoAfter(Math.max(width, height));
-
-    var squareTerrain = generateSquareTerrain(size, smoothness);
-    var terrain = [];
-    // terrain is a matrix of size (width + 1) x (height + 1)
-    for (var i = 0; i <= height; ++i) {
-      terrain.push(squareTerrain[i].slice(0, width + 1));
-    }
-
-    return terrain;
-  }
-
-  function smallestPowerOfTwoAfter(n) {
-    var ret = 1;
-    while (ret < n) {
-      ret <<= 1;
-    }
-    return ret;
-  }
-
-  /**
-   * Generate a square fractal terrain.
-   * @param {number} size - Size of terrain, MUST be a power of 2.
-   * @param {number} smoothness - Higher this value, smoother the terrain.
-   *      recommended value is 1.
-   * @return {Array.<Array.<int>>} A two-dimensional array holding the elevations 
-   *     of the vertices of the terrain. Each elevation will be between -1 and 1.
-   */
-  function generateSquareTerrain(size, smoothness) {
-    // throw error if size is not a power of two.
-    if (size & (size - 1)) {
-      throw new Error('Expected terrain size to be a power of 2, received ' + 
-                      size + ' instead.');
-    }
-
-    // generate a square matrix
-    var mat = generateMatrix(size + 1);
-
-    // iterate on the matrix using the square-diamond algorithm
-    iterate(mat, smoothness);
-
-    return mat;
-  }
-
-  /**
-   * Generate a square matrix
-   * @param {number} size - Width and length of the square.
-   * @return {Array.<Array.<int>>} The vertices matrix of the square
-   */
-  function generateMatrix(size) {
-    var matrix = [];
-
-    for (var i = 0; i < size; i++) {
-      var row = [];
-      for (var j = 0; j < size; ++j) {
-        row.push(0);
-      }
-      matrix.push(row);
-    };
-
-    return matrix;
-  }
-
-
-  /**
-   * Iterate on the matrix using Diamond-Square algorithm.
-   * @param {Array.<Array.<int>>} matrix - Matrix to be iterated on.
-   * @param {number} smoothness - Smoothness of terrain.
-   */
-  function iterate(matrix, smoothness) {
-    // the count of iterations applied so far
-    var counter = 0;
-    // the total number of iterations to apply is log_2^(size of matrix)
-    var numIteration = Math.log(matrix.length - 1) / Math.LN2;
-    while (counter++ < numIteration) {
-      diamond(matrix, counter, smoothness);
-      square(matrix, counter, smoothness);
-    }
-  }
-
-
-  /**
-   * Diamond step of iteration.
-   * @param {Array.<Array.<int>>} matrix - Matrix to iterate on.
-   * @param {number} depth - Depth of current iteration(starts from 1).
-   * @param {number} smoothness - Smoothness of terrain.
-   */
-  function diamond(matrix, depth, smoothness) {
-
-    var matSize = matrix.length - 1;
-    var numSegs = 1 << (depth - 1);
-    var span = matSize / numSegs;
-
-    // enumerate sub-squares 
-    // for each sub-square, the height of the center is caculated
-    // by averaging the height of its four vertices plus a random offset.
-    for (var x = 0; x < matSize; x += span) {
-      for (var y = 0; y < matSize; y += span) {
-        //  (x, y)
-        //    \
-        //     a---b---c
-        //     |   |   |
-        //     d---e---f
-        //     |   |   |
-        //     g---h---i
-        // 
-        //     \___ ___/
-        //         V
-        //       span 
-        // 
-        var va = [x, y];
-        var vc = [x + span, y];
-        var ve = [x + span / 2, y + span / 2];
-        var vg = [x, y + span];
-        var vi = [x + span, y + span];
-
-        // heights of vertices
-        var heights = [va, vc, vg, vi].map(function(v) {
-          return matrix[v[1]][v[0]];
-        });
-
-        // average height
-        var avg = average(heights);
-
-        // random offset
-        var offset = getH(smoothness, depth);
-
-        // set center height
-        matrix[ve[1]][ve[0]] = avg + offset;
-      }
-    }
-  }
-
-
-  /**
-   * Square step of iteration.
-   * @param {Array.<Array.<int>>} matrix - Matrix to iterate on.
-   * @param {number} depth - Depth of current iteration(starts from 1).
-   * @param {number} smoothness - Smoothness of terrain.
-   */
-  function square(matrix, depth, smoothness) {
-
-    var matSize = matrix.length - 1;
-    var numSegs = 1 << (depth - 1);
-    var span = matSize / numSegs;
-
-    // enumerate sub-dimaonds 
-    for (var x = 0; x < matSize; x += span) {
-      for (var y = 0; y < matSize; y += span) {
-        // for each sub-square, the height of the center is caculated
-        // by averaging the height of its four vertices plus a random offset.
-        // for example, 
-        //       h = avg(g, c, i, m) + random;
-        //       f = avg(a, g, k, i) + random;
-        //       j = f;
-        //
-        //  (x, y)
-        //    \
-        //     a---b---c---d---e
-        //     | \ | / | \ | / |
-        //     f---g---h---i---j
-        //     | / | \ | / | \ |
-        //     k---l---m---n---o
-        //     | \ | / | \ | / |
-        //     p---q---r---s---t
-        //     | / | \ | / | \ |
-        //     u---v---w---x---y
-        // 
-        //     \___ ___/
-        //         V
-        //       span 
-        // 
-        var va = [x, y];
-        var vb = [x + span / 2, y];
-        var vc = [x + span, y];
-        var vf = [x, y + span / 2];
-        var vg = [x + span / 2, y + span / 2];
-        var vh = [x + span, y + span / 2];
-        var vk = [x, y + span];
-        var vl = [x + span / 2, y + span];
-        var vm = [x + span, y + span];
-
-        var vhr = [(x + span / 2 * 3) % matrix.length, y + span / 2]; // right of h
-        var vfl = [(x - span / 2 + matrix.length) % matrix.length, y + span / 2]; // left of f
-        var vlu = [x + span / 2, (y + span / 2 * 3) % matrix.length]; // under l
-        var vba = [x + span / 2, (y - span / 2 + matrix.length) % matrix.length]; // above b
-
-        squareHelper(matrix, depth, smoothness, va, vg, vk, vfl, vf);
-        squareHelper(matrix, depth, smoothness, va, vba, vc, vg, vb);
-        squareHelper(matrix, depth, smoothness, vc, vhr, vm, vg, vh);
-        squareHelper(matrix, depth, smoothness, vk, vg, vm, vlu, vl);
-      }
-    }
-
-    // set the elevations of the rightmost and bottom vertices to 
-    // equal the leftmost and topmost ones'.
-    for (var y = 0; y < matSize; y += span) {
-      matrix[y][matSize] = matrix[y][0];
-    }
-    for (var x = 0; x < matSize; x += span) {
-      matrix[matSize][x] = matrix[0][x];
-    }
-  }
-
-  function squareHelper(matrix, depth, smoothness, a, b, c, d, t) {
-    var heights = [a, b, c, d].map(function(v) {
-      return matrix[v[1]][v[0]];
-    });
-    var avg = average(heights);
-    var offset = getH(smoothness, depth);
-    matrix[t[1]][t[0]] = avg + offset;
-  }
-
-
-  /**
-   * Get a random offset.
-   * @param {number} smoothness - Higher the value, smoother the terrain.
-   *      recommended value is 1.
-   * @param {number} depth - Depth of current iteration(starts from 1).
-   */
-  function getH(smoothness, depth) {
-    var sign = Math.random() > 0.5 ? 1 : -1;
-    var reduce = 1;
-    for (var i = 1; i < depth; ++i) { 
-      reduce *= Math.pow(2, -smoothness);
-    }
-    return sign * Math.random() * reduce;
-  }
-
-
-  function average(numbers) {
-    var sum = 0;
-    numbers.forEach(function(v) {
-      sum += v;
-    });
-    return sum / numbers.length;
-  }
-
-
-  // export to global
-  var root;
-  if (typeof exports !== 'undefined' && exports !== null) {
-    root = exports;
-  } else {
-    root = window;
-  }
-  root.generateTerrain = generateTerrain;
-
-}).call(this);
-
-},{}],4:[function(require,module,exports){
 (function (global){
 /**
  * @license
@@ -31049,7 +30776,7 @@ module.exports = require('./lib/terrain.js');
 }.call(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],5:[function(require,module,exports){
+},{}],3:[function(require,module,exports){
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
 	typeof define === 'function' && define.amd ? define(['exports'], factory) :
@@ -76114,7 +75841,7 @@ module.exports = require('./lib/terrain.js');
 
 })));
 
-},{}],6:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 /**
  * Convert array of 16 byte values to UUID string format of the form:
  * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
@@ -76139,7 +75866,7 @@ function bytesToUuid(buf, offset) {
 
 module.exports = bytesToUuid;
 
-},{}],7:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 (function (global){
 // Unique ID creation requires a high quality random # generator.  In the
 // browser this is a little complicated due to unknown quality of Math.random()
@@ -76176,7 +75903,7 @@ if (!rng) {
 module.exports = rng;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],8:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 var rng = require('./lib/rng');
 var bytesToUuid = require('./lib/bytesToUuid');
 
@@ -76207,18 +75934,26 @@ function v4(options, buf, offset) {
 
 module.exports = v4;
 
-},{"./lib/bytesToUuid":6,"./lib/rng":7}],9:[function(require,module,exports){
+},{"./lib/bytesToUuid":4,"./lib/rng":5}],7:[function(require,module,exports){
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 //scene and camera setup
 const THREE = require("three");
-const fractal = require("fractal-terrain-generator");
 const lodash_1 = require("lodash");
 const CANNON = require("cannon");
 const Physics_1 = require("./Physics");
 const Terrain_1 = require("./components/Terrain");
 const Avatar_1 = require("./components/Avatar");
 const PointerLockControls_1 = require("./util/PointerLockControls");
+const uuid = require("uuid/v4");
 function segment(matrix, vertices) {
     let n = Math.sqrt(vertices.length);
     let offset = (n - 10) / 10;
@@ -76244,206 +75979,226 @@ function segmentTopography(topography, matrix) {
     return out;
 }
 function World() {
-    let ctx = {};
-    ctx.worldSize = 100;
-    ctx.tiles = [];
-    ctx.terrain = {};
-    ctx.controls = {};
-    ctx.scene = new THREE.Scene();
-    ctx.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    ctx.renderer = new THREE.WebGLRenderer();
-    ctx.renderer.setPixelRatio(window.devicePixelRatio);
-    ctx.renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(ctx.renderer.domElement);
-    ctx.zoom = 1;
-    ctx.tilt = -3;
-    ctx.camera.position.x = 0;
-    ctx.camera.position.y = ctx.tilt;
-    ctx.camera.position.z = ctx.zoom;
-    ctx.camera.lookAt(0, 0, 0);
-    ctx.camera.up.set(0, 0, 1);
-    THREE.Object3D.DefaultUp.set(0, 0, 1);
-    let HOST = location.origin.replace(/^http/, 'ws');
-    ctx.ws = new WebSocket(HOST);
-    ctx.data = {};
-    ctx.players = [];
-    function getZ(x, y) {
-        let { terrain: { geometry: { vertices } } } = ctx;
-        let index = lodash_1.findIndex(vertices, {
-            x: Math.round(x),
-            y: Math.round(y)
-        });
-        let z = vertices[index] ? vertices[index].z : 0;
-        return z;
-    }
-    function randomPositionOnTerrain() {
-        let x = Math.round(Math.random() * 100) - 50;
-        let y = Math.round(Math.random() * 100) - 50;
-        let z = getZ(x, y);
-        return [x, y, z];
-    }
-    ctx.randomPositionOnTerrain = randomPositionOnTerrain;
-    function light() {
-        let light = new THREE.HemisphereLight(0xfffafa, 0x000000, .7);
-        let sun = new THREE.DirectionalLight(0xcdc1c5, 0.9);
-        sun.position.set(-10, -10, 10);
-        sun.castShadow = true;
-        ctx.scene.add(light);
-        ctx.scene.add(sun);
-        return ctx;
-    }
-    function createMap() {
-        ctx.terrain.geometry = new THREE.Geometry();
-        let altitude = fractal.generateTerrain(100, 100, 0.4);
-        let terrain = Terrain_1.default({
-            position: [0, 0, 0],
-            color: 0x7cfc00,
-            altitude: altitude
-        });
-        ctx.tiles.push(terrain);
-        ctx.scene.add(terrain);
-        ctx.terrain.geometry.vertices = ctx.terrain.geometry.vertices.concat(terrain.geometry.vertices);
-        /*for(let i = 0; i < 1; i++) {
-          for(let j = 0; j < 1; j++) {
-            
-            let terrain = Terrain({
-              position: [i * 10, j * 10, 0],
-              color: i < 4 && j < 4 ? 0x7cfc00 : null,
-              altitude: segmentTopography(altitude, [i, j])
-            })
-    
-            ctx.tiles.push(terrain)
-    
-            ctx.scene.add(terrain)
-    
-            ctx.terrain.geometry.vertices = ctx.terrain.geometry.vertices.concat(
-              terrain.geometry.vertices
-            )
-    
-          }
-        }*/
-    }
-    ctx.scene.background = new THREE.Color(0x191970);
-    ctx.scene.fog = new THREE.FogExp2(0x000000, 0.0025 * 50);
-    createMap();
-    light();
-    ctx.avatar = Avatar_1.default();
-    ctx.scene.add(ctx.avatar);
-    ctx.scene.updateMatrixWorld();
-    let cannonContext = Physics_1.Physics(ctx);
-    let { world, base, playerSphereBody, } = cannonContext;
-    //generateTerrainObjects(ctx, randomPositionOnTerrain())
-    //generateCampfire(ctx)
-    // CANNON
-    ctx.world = cannonContext.world;
-    ctx.playerSphereBody = playerSphereBody;
-    cannonContext.spawnBoxes();
-    cannonContext.spawnTrees();
-    function onWindowResize() {
-        ctx.camera.aspect = window.innerWidth / window.innerHeight;
-        ctx.camera.updateProjectionMatrix();
+    return __awaiter(this, void 0, void 0, function* () {
+        let ctx = {};
+        ctx.worldSize = 100;
+        ctx.tiles = [];
+        ctx.terrain = {};
+        ctx.controls = {};
+        ctx.scene = new THREE.Scene();
+        ctx.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        ctx.renderer = new THREE.WebGLRenderer();
+        ctx.renderer.setPixelRatio(window.devicePixelRatio);
         ctx.renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-    let timeStep = 1 / 60;
-    let start = Date.now();
-    function updatePhysics() {
-        // Step the physics world
-        ctx.world.step(timeStep);
-        base.sync('snowballs');
-        base.sync('boxes');
-        ctx.avatar.position.copy(ctx.playerSphereBody.position);
-        ctx.avatar.children[0].quaternion.copy(ctx.playerSphereBody.quaternion);
-        if (Object.keys(ctx.data).length > 0) {
-            Object.keys(ctx.data).forEach(key => {
-                let player = ctx.data[key];
-                player.mesh.position.copy(player.body.position);
-                player.mesh.children[0].quaternion.copy(player.body.quaternion);
+        document.body.appendChild(ctx.renderer.domElement);
+        ctx.zoom = 1;
+        ctx.tilt = -3;
+        ctx.camera.position.x = 0;
+        ctx.camera.position.y = ctx.tilt;
+        ctx.camera.position.z = ctx.zoom;
+        ctx.camera.lookAt(0, 0, 0);
+        ctx.camera.up.set(0, 0, 1);
+        THREE.Object3D.DefaultUp.set(0, 0, 1);
+        let HOST = location.origin.replace(/^http/, 'ws');
+        ctx.ws = new WebSocket(HOST);
+        ctx.data = {};
+        function getZ(x, y) {
+            let { terrain: { geometry: { vertices } } } = ctx;
+            let index = lodash_1.findIndex(vertices, {
+                x: Math.round(x),
+                y: Math.round(y)
+            });
+            let z = vertices[index] ? vertices[index].z : 0;
+            return z;
+        }
+        function randomPositionOnTerrain() {
+            let x = Math.round(Math.random() * 100) - 50;
+            let y = Math.round(Math.random() * 100) - 50;
+            let z = getZ(x, y);
+            return [x, y, z];
+        }
+        ctx.randomPositionOnTerrain = randomPositionOnTerrain;
+        function light() {
+            let light = new THREE.HemisphereLight(0xfffafa, 0x000000, .7);
+            let sun = new THREE.DirectionalLight(0xcdc1c5, 0.9);
+            sun.position.set(-10, -10, 10);
+            sun.castShadow = true;
+            ctx.scene.add(light);
+            ctx.scene.add(sun);
+            return ctx;
+        }
+        function createMap() {
+            return __awaiter(this, void 0, void 0, function* () {
+                ctx.terrain.geometry = new THREE.Geometry();
+                //let altitude = fractal.generateTerrain(100, 100, 0.4)
+                let heightmap = yield fetch('/heightmap')
+                    .then(resp => resp.json());
+                console.log(heightmap);
+                let terrain = Terrain_1.default({
+                    position: [0, 0, 0],
+                    color: 0x7cfc00,
+                    altitude: heightmap
+                });
+                ctx.tiles.push(terrain);
+                ctx.scene.add(terrain);
+                ctx.terrain.geometry.vertices = ctx.terrain.geometry.vertices.concat(terrain.geometry.vertices);
+                /*for(let i = 0; i < 1; i++) {
+                  for(let j = 0; j < 1; j++) {
+                    
+                    let terrain = Terrain({
+                      position: [i * 10, j * 10, 0],
+                      color: i < 4 && j < 4 ? 0x7cfc00 : null,
+                      altitude: segmentTopography(altitude, [i, j])
+                    })
+            
+                    ctx.tiles.push(terrain)
+            
+                    ctx.scene.add(terrain)
+            
+                    ctx.terrain.geometry.vertices = ctx.terrain.geometry.vertices.concat(
+                      terrain.geometry.vertices
+                    )
+            
+                  }
+                }*/
             });
         }
-        ctx.controls.update(Date.now() - start);
-        base.update();
-        start = Date.now();
-    }
-    function render() {
-        updatePhysics();
-        ctx.renderer.render(ctx.scene, ctx.camera);
-    }
-    function animate() {
-        requestAnimationFrame(animate);
-        let { position: { x, y, z } } = ctx.avatar;
-        ctx.camera.position.setZ(z + ctx.zoom);
-        render();
-    }
-    ctx.init = () => {
-        window.addEventListener('resize', onWindowResize, false);
-        let pointerlockchange = function (event) {
-            ctx.controls.enabled = true;
-        };
-        document.addEventListener('pointerlockchange', pointerlockchange, false);
-        document.addEventListener('mozpointerlockchange', pointerlockchange, false);
-        document.addEventListener('webkitpointerlockchange', pointerlockchange, false);
-        ctx.controls = new PointerLockControls_1.default(ctx.camera, ctx.playerSphereBody, ctx.avatar);
-        ctx.scene.add(ctx.controls.getObject());
-        animate();
-        base.tick();
-        window.addEventListener('keydown', function (e) {
-            let position = ctx.playerSphereBody.position.toArray().map(p => Math.round(p));
-            document.getElementById('info').innerHTML = `<span>${position.join(', ')}<span>`;
-            switch (e.code) {
-                case 'Equal':
-                    ctx.zoom--;
-                    break;
-                case 'Minus':
-                    ctx.zoom++;
-                    break;
-                case 'Backquote':
-                    if (ctx.controls.enabled) {
-                        ctx.controls.enabled = false;
-                    }
-                    else {
-                        ctx.controls.enabled = true;
-                    }
-                    break;
-            }
-        });
-        ctx.ws.onmessage = function (event) {
-            let message = JSON.parse(event.data);
-            if (message.id === ctx.avatar.name) {
-                cannonContext.playerSphereBody.body.position.set(message.position.x, message.position.y, message.position.z);
-                cannonContext.playerSphereBody.body.velocity.set(message.velocity.x, message.velocity.y, message.velocity.z);
-            }
-            if (!ctx.data[message.id])
-                ctx.data[message.id] = {};
-            let player = ctx.data[message.id];
-            player.message = message;
-            if (!player.didSpawn) {
-                let snowman = Avatar_1.default();
-                ctx.scene.add(snowman);
-                ctx.data[message.id].mesh = snowman;
-                let playerSphereShape = new CANNON.Sphere(0.3);
-                let playerSphereBody = new CANNON.Body({
-                    mass: 1,
-                    material: cannonContext.physicsMaterial
+        ctx.scene.background = new THREE.Color(0x191970);
+        ctx.scene.fog = new THREE.FogExp2(0x000000, 0.0025 * 50);
+        yield createMap();
+        light();
+        let avatarId = uuid();
+        let avatar = Avatar_1.default(avatarId);
+        ctx.avatar = avatar;
+        ctx.data[avatar.name] = {};
+        ctx.data[avatar.name].mesh = avatar;
+        ctx.data[avatar.name].isOtherPlayer = false;
+        ctx.data[avatar.name].didSpawn = true;
+        ctx.data[avatar.name].id = avatar.name;
+        ctx.data[avatar.name].timestamp = Date.now();
+        ctx.scene.add(ctx.avatar);
+        ctx.scene.updateMatrixWorld();
+        let cannonContext = Physics_1.Physics(ctx);
+        let { world, base, playerSphereBody, } = cannonContext;
+        ctx.data[avatar.name].body = playerSphereBody;
+        //generateTerrainObjects(ctx, randomPositionOnTerrain())
+        //generateCampfire(ctx)
+        // CANNON
+        ctx.world = cannonContext.world;
+        ctx.playerSphereBody = playerSphereBody;
+        cannonContext.spawnBoxes();
+        cannonContext.spawnTrees();
+        function onWindowResize() {
+            ctx.camera.aspect = window.innerWidth / window.innerHeight;
+            ctx.camera.updateProjectionMatrix();
+            ctx.renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        let timeStep = 1 / 60;
+        let start = Date.now();
+        function updatePhysics() {
+            // Step the physics world
+            ctx.world.step(timeStep);
+            base.sync('snowballs');
+            base.sync('boxes');
+            //ctx.avatar.position.copy(ctx.playerSphereBody.position)
+            //ctx.avatar.children[0].quaternion.copy(ctx.playerSphereBody.quaternion)
+            if (Object.keys(ctx.data).length > 0) {
+                Object.keys(ctx.data).forEach(key => {
+                    let player = ctx.data[key];
+                    player.mesh.position.copy(player.body.position);
+                    player.mesh.children[0].quaternion.copy(player.body.quaternion);
                 });
-                playerSphereBody.addShape(playerSphereShape);
-                playerSphereBody.linearDamping = 0.9;
-                cannonContext.world.addBody(playerSphereBody);
-                ctx.data[message.id].body = playerSphereBody;
-                ctx.data[message.id].didSpawn = true;
             }
-            let { position, velocity } = player.message;
-            player.body.position.set(position.x, position.y, position.z);
-            player.body.velocity.set(velocity.x, velocity.y, velocity.z);
-            console.log(ctx.data);
-        };
+            ctx.controls.update(Date.now() - start);
+            base.update();
+            start = Date.now();
+        }
+        function render() {
+            updatePhysics();
+            ctx.renderer.render(ctx.scene, ctx.camera);
+        }
+        function animate() {
+            requestAnimationFrame(animate);
+            let { position: { x, y, z } } = ctx.avatar;
+            ctx.camera.position.setZ(z + ctx.zoom);
+            render();
+        }
+        function init() {
+            window.addEventListener('resize', onWindowResize, false);
+            let pointerlockchange = function (event) {
+                ctx.controls.enabled = true;
+            };
+            document.addEventListener('pointerlockchange', pointerlockchange, false);
+            document.addEventListener('mozpointerlockchange', pointerlockchange, false);
+            document.addEventListener('webkitpointerlockchange', pointerlockchange, false);
+            ctx.controls = new PointerLockControls_1.default(ctx.camera, ctx.playerSphereBody, ctx.avatar);
+            ctx.scene.add(ctx.controls.getObject());
+            animate();
+            base = base.apply(ctx);
+            console.log('base', base);
+            base.tick();
+            window.addEventListener('keydown', function (e) {
+                let position = ctx.playerSphereBody.position.toArray().map(p => Math.round(p));
+                document.getElementById('info').innerHTML = `<span>${position.join(', ')}<span>`;
+                switch (e.code) {
+                    case 'Equal':
+                        ctx.zoom--;
+                        break;
+                    case 'Minus':
+                        ctx.zoom++;
+                        break;
+                    case 'Backquote':
+                        if (ctx.controls.enabled) {
+                            ctx.controls.enabled = false;
+                        }
+                        else {
+                            ctx.controls.enabled = true;
+                        }
+                        break;
+                }
+            });
+            ctx.ws.onmessage = function (event) {
+                let messages = JSON.parse(event.data);
+                messages.forEach(message => {
+                    if (!ctx.data[message.id])
+                        ctx.data[message.id] = {};
+                    let player = ctx.data[message.id];
+                    player.message = message;
+                    if (!player.didSpawn) {
+                        let snowman = Avatar_1.default(message.id);
+                        ctx.scene.add(snowman);
+                        ctx.data[message.id].mesh = snowman;
+                        let playerSphereShape = new CANNON.Sphere(0.3);
+                        let playerSphereBody = new CANNON.Body({
+                            mass: 1,
+                            material: cannonContext.physicsMaterial
+                        });
+                        playerSphereBody.addShape(playerSphereShape);
+                        playerSphereBody.linearDamping = 0.9;
+                        cannonContext.world.addBody(playerSphereBody);
+                        ctx.data[message.id].body = playerSphereBody;
+                        ctx.data[message.id].didSpawn = true;
+                        ctx.data[message.id].id = message.id;
+                        ctx.data[message.id].isOtherPlayer = true;
+                    }
+                    let { position, velocity } = player.message;
+                    let positionVector = new THREE.Vector3(position);
+                    let velocityVector = new THREE.Vector3(velocity);
+                    player.body.position.copy(positionVector.multiply(velocityVector));
+                    player.body.velocity.copy(velocityVector);
+                    console.log(ctx.data);
+                });
+            };
+            return ctx;
+        }
+        init();
         return ctx;
-    };
-    return ctx;
+    });
 }
 window.World = World;
-World().init();
+let world = World();
 
-},{"./Physics":11,"./components/Avatar":12,"./components/Terrain":13,"./util/PointerLockControls":17,"cannon":1,"fractal-terrain-generator":2,"lodash":4,"three":5}],10:[function(require,module,exports){
+},{"./Physics":9,"./components/Avatar":10,"./components/Terrain":11,"./util/PointerLockControls":15,"cannon":1,"lodash":2,"three":3,"uuid/v4":6}],8:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -76453,6 +76208,7 @@ function Base(ctx, cannonContext) {
     base.store = {};
     base.cameraViewProjectionMatrix = new THREE.Matrix4();
     base.frustum = new THREE.Frustum();
+    base.ctx = ctx;
     function initCache(name, respawn) {
         let { store } = base;
         if (!store[name])
@@ -76574,11 +76330,15 @@ function Base(ctx, cannonContext) {
         setTimeout(() => {
             let player = cannonContext.playerSphereBody;
             console.log(player);
-            ctx.ws.send(JSON.stringify({
-                position: player.position,
-                velocity: player.velocity,
-                id: ctx.avatar.name
+            let wsData = Object.keys(ctx.data).map(key => ({
+                position: ctx.data[key].body.position,
+                velocity: ctx.data[key].body.velocity,
+                didSpawn: ctx.data[key].didSpawn,
+                isOtherPlayer: ctx.data[key].isOtherPlayer,
+                id: ctx.data[key].id,
+                timestamp: Date.now()
             }));
+            ctx.ws.send(JSON.stringify(wsData));
             if (Object.keys(store).length > 0) {
                 Object.keys(store).forEach(key => {
                     let cache = store[key];
@@ -76601,7 +76361,11 @@ function Base(ctx, cannonContext) {
                 });
             }
             base.tick();
-        }, 2000);
+        }, 500);
+    };
+    base.apply = (ctx) => {
+        base.ctx = ctx;
+        return base;
     };
     base.update = () => {
         let { cameraViewProjectionMatrix, frustum } = base;
@@ -76615,7 +76379,7 @@ function Base(ctx, cannonContext) {
 }
 exports.default = Base;
 
-},{"lodash":4,"three":5}],11:[function(require,module,exports){
+},{"lodash":2,"three":3}],9:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const CANNON = require("cannon");
@@ -76795,13 +76559,12 @@ function Physics(ctx) {
 }
 exports.Physics = Physics;
 
-},{"../Base":10,"../components/Tree":14,"../components/objects":15,"cannon":1,"three":5}],12:[function(require,module,exports){
+},{"../Base":8,"../components/Tree":12,"../components/objects":13,"cannon":1,"three":3}],10:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
 const objects_1 = require("./objects");
-const uuid = require("uuid/v4");
-function Avatar() {
+function Avatar(id) {
     let material = new THREE.MeshLambertMaterial({
         color: 0xfffafa,
         flatShading: true,
@@ -76835,7 +76598,7 @@ function Avatar() {
     middleSnowman.add(twig1);
     let avatar = new THREE.Group();
     //avatar.name = 'snowman'
-    avatar.name = uuid();
+    avatar.name = id;
     avatar.add(bottomSnowman);
     avatar.add(middleSnowman);
     avatar.add(topSnowman);
@@ -76845,7 +76608,7 @@ function Avatar() {
 }
 exports.default = Avatar;
 
-},{"./objects":15,"three":5,"uuid/v4":8}],13:[function(require,module,exports){
+},{"./objects":13,"three":3}],11:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -76890,7 +76653,7 @@ function Terrain(params = {}) {
 }
 exports.default = Terrain;
 
-},{"../constants":16,"three":5}],14:[function(require,module,exports){
+},{"../constants":14,"three":3}],12:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -76986,7 +76749,7 @@ function Tree() {
 }
 exports.default = Tree;
 
-},{"cannon":1,"three":5}],15:[function(require,module,exports){
+},{"cannon":1,"three":3}],13:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -77107,7 +76870,7 @@ function generateCampfire(ctx) {
 }
 exports.generateCampfire = generateCampfire;
 
-},{"../constants":16,"cannon":1,"three":5}],16:[function(require,module,exports){
+},{"../constants":14,"cannon":1,"three":3}],14:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BASE_ASSET_URL = 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/';
@@ -77117,7 +76880,7 @@ exports.assets = {
     sky: `${exports.BASE_ASSET_URL}/galaxy.jpg`
 };
 
-},{}],17:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 "use strict";
 /**
  * @author mrdoob / http://mrdoob.com/
@@ -77261,4 +77024,4 @@ function PointerLockControls(camera, cannonBody, avatar) {
 ;
 exports.default = PointerLockControls;
 
-},{"cannon":1,"three":5}]},{},[9]);
+},{"cannon":1,"three":3}]},{},[7]);

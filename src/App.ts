@@ -15,6 +15,7 @@ import Terrain from './components/Terrain'
 import Avatar from './components/Avatar'
 import Tree from './components/Tree';
 import PointerLockControls from './util/PointerLockControls'
+import * as uuid from 'uuid/v4'
 
 function segment(matrix, vertices) {  
   let n = Math.sqrt(vertices.length)
@@ -54,7 +55,7 @@ function segmentTopography(topography, matrix) {
   return out;
 }
 
-function World() {
+async function World() {
   let ctx : any = {}
   ctx.worldSize = 100;
   ctx.tiles = []
@@ -88,7 +89,6 @@ function World() {
   let HOST = location.origin.replace(/^http/, 'ws')
   ctx.ws = new WebSocket(HOST);
   ctx.data = {}
-  ctx.players = []
 
   function getZ (x, y) {
     let { terrain: { geometry: { vertices } } } = ctx;
@@ -124,14 +124,19 @@ function World() {
     return ctx;
   }
 
-  function createMap() {
+  async function createMap() {
     ctx.terrain.geometry = new THREE.Geometry();
-    let altitude = fractal.generateTerrain(100, 100, 0.4)
+    //let altitude = fractal.generateTerrain(100, 100, 0.4)
+    
+    let heightmap = await fetch('/heightmap')
+      .then(resp => resp.json())
+    
+    console.log(heightmap)
 
     let terrain = Terrain({
       position: [0, 0, 0],
       color: 0x7cfc00,
-      altitude: altitude
+      altitude: heightmap
     })
 
     ctx.tiles.push(terrain)
@@ -163,10 +168,20 @@ function World() {
   ctx.scene.background = new THREE.Color(0x191970)
   ctx.scene.fog = new THREE.FogExp2( 0x000000, 0.0025 * 50);
 
-  createMap()
-  light()
+  await createMap()
 
-  ctx.avatar = Avatar()
+  light()
+  let avatarId = uuid()
+  let avatar = Avatar(avatarId)
+  ctx.avatar = avatar;
+
+  ctx.data[avatar.name] = {}
+  ctx.data[avatar.name].mesh = avatar;
+  ctx.data[avatar.name].isOtherPlayer = false;
+  ctx.data[avatar.name].didSpawn = true;
+  ctx.data[avatar.name].id = avatar.name
+  ctx.data[avatar.name].timestamp = Date.now()
+
   ctx.scene.add(ctx.avatar)
   ctx.scene.updateMatrixWorld()
 
@@ -177,7 +192,8 @@ function World() {
       base,
       playerSphereBody,
   } = cannonContext;
-
+  ctx.data[avatar.name].body = playerSphereBody;
+  
   //generateTerrainObjects(ctx, randomPositionOnTerrain())
   //generateCampfire(ctx)
 
@@ -204,8 +220,8 @@ function World() {
     base.sync('snowballs')
     base.sync('boxes')
 
-    ctx.avatar.position.copy(ctx.playerSphereBody.position)
-    ctx.avatar.children[0].quaternion.copy(ctx.playerSphereBody.quaternion)
+    //ctx.avatar.position.copy(ctx.playerSphereBody.position)
+    //ctx.avatar.children[0].quaternion.copy(ctx.playerSphereBody.quaternion)
   
     if(Object.keys(ctx.data).length > 0) {
       Object.keys(ctx.data).forEach(key => {
@@ -239,7 +255,7 @@ function World() {
     render()
   }
 
-  ctx.init = () => {
+  function init() {
     window.addEventListener('resize', onWindowResize, false)
     
     let pointerlockchange = function ( event ) {
@@ -255,7 +271,11 @@ function World() {
     ctx.scene.add(ctx.controls.getObject())
   
     animate()
+
+    base = base.apply(ctx)
+    console.log('base', base)
     base.tick()
+
     window.addEventListener('keydown', function(e) {
       let position = ctx.playerSphereBody.position.toArray().map(p => Math.round(p))
 
@@ -279,66 +299,52 @@ function World() {
     })
 
     ctx.ws.onmessage = function (event) {
-      let message = JSON.parse(event.data)
+      let messages = JSON.parse(event.data)
       
-      if(message.id === ctx.avatar.name) {
-        cannonContext.playerSphereBody.body.position.set(
-          message.position.x,
-          message.position.y,
-          message.position.z
-        )
-        cannonContext.playerSphereBody.body.velocity.set(
-          message.velocity.x,
-          message.velocity.y,
-          message.velocity.z
-        )
-      }
-
-      if(!ctx.data[message.id]) ctx.data[message.id] = {}
-      
-      let player = ctx.data[message.id]
-      player.message = message;
-      
-      if(!player.didSpawn) {
-        let snowman = Avatar()
-        ctx.scene.add(snowman)
-        ctx.data[message.id].mesh = snowman
-
-        let playerSphereShape = new CANNON.Sphere(0.3)
-        let playerSphereBody = new CANNON.Body({ 
-          mass: 1, 
-          material: cannonContext.physicsMaterial 
-        })
+      messages.forEach(message => {
+        if(!ctx.data[message.id]) ctx.data[message.id] = {}
         
-        playerSphereBody.addShape(playerSphereShape)
-        playerSphereBody.linearDamping = 0.9;
-      
-        cannonContext.world.addBody(playerSphereBody)
-        ctx.data[message.id].body = playerSphereBody
-        ctx.data[message.id].didSpawn = true;
-      } 
+        let player = ctx.data[message.id]
+        player.message = message;
+        
+        if(!player.didSpawn) {
+          let snowman = Avatar(message.id)
+          ctx.scene.add(snowman)
+          ctx.data[message.id].mesh = snowman
+  
+          let playerSphereShape = new CANNON.Sphere(0.3)
+          let playerSphereBody = new CANNON.Body({ 
+            mass: 1, 
+            material: cannonContext.physicsMaterial 
+          })
+          
+          playerSphereBody.addShape(playerSphereShape)
+          playerSphereBody.linearDamping = 0.9;
+        
+          cannonContext.world.addBody(playerSphereBody)
+          ctx.data[message.id].body = playerSphereBody
+          ctx.data[message.id].didSpawn = true;
+          ctx.data[message.id].id = message.id;
+          ctx.data[message.id].isOtherPlayer = true;
+        } 
+  
+        let { position, velocity } = player.message;
+        let positionVector = new THREE.Vector3(position)
+        let velocityVector = new THREE.Vector3(velocity)
 
-      let { position, velocity } = player.message;
-
-      player.body.position.set(
-        position.x,
-        position.y,
-        position.z
-      )
-
-      player.body.velocity.set(
-        velocity.x,
-        velocity.y,
-        velocity.z
-      )
-
-      console.log(ctx.data)
-      
+        player.body.position.copy(positionVector.multiply(velocityVector))
+  
+        player.body.velocity.copy(velocityVector)
+  
+        console.log(ctx.data)
+      })
     };
   
     return ctx;
   }
   
+  init()
+
   return ctx;
 }
 
@@ -355,4 +361,4 @@ declare global {
 }
 
 
-World().init()
+let world = World()

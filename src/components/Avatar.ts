@@ -3,9 +3,8 @@ import * as THREE from 'three'
 import {
   Wood
 } from './objects'
-import * as uuid from 'uuid/v4'
 
-export default function Avatar() {
+export default function Avatar(id) {
   let material = new THREE.MeshLambertMaterial({ 
     color: 0xfffafa,
     flatShading: true,
@@ -64,7 +63,7 @@ export default function Avatar() {
 
   let avatar = new THREE.Group()
   //avatar.name = 'snowman'
-  avatar.name = uuid()
+  avatar.name = id
 
   avatar.add(bottomSnowman)
   avatar.add(middleSnowman)

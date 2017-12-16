@@ -13,6 +13,13 @@ const PORT = process.env.PORT || 3000;
 app.use('/', express.static('dist'));
 app.use(bodyParser.json())
 
+const { generateTerrain } = require('fractal-terrain-generator')
+
+let heightmap = []
+
+function createHeightmap() {
+  heightmap = generateTerrain(100, 100, 0.4)
+}
 
 const interval = setInterval(() => {
   wss.clients.forEach((ws) => {
@@ -50,6 +57,14 @@ wss.on('connection', function connection(ws) {
   });
 });
 
+app.get('/heightmap', (req, res) => {
+  if(heightmap.length < 1) {
+    createHeightmap()
+  } 
+
+
+  res.json(heightmap)
+})
 
 app.post('/save', (req, res) => {
   const body = req.body;

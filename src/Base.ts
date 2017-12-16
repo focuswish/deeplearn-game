@@ -8,6 +8,7 @@ export default function Base(ctx, cannonContext) {
   base.store = {}
   base.cameraViewProjectionMatrix = new THREE.Matrix4();
   base.frustum = new THREE.Frustum();
+  base.ctx = ctx;
 
   function initCache (name, respawn) {
     let { store } = base;
@@ -165,11 +166,15 @@ export default function Base(ctx, cannonContext) {
     setTimeout(() => {
       let player = cannonContext.playerSphereBody;
       console.log(player)
-      ctx.ws.send(JSON.stringify({
-        position: player.position,
-        velocity: player.velocity,
-        id: ctx.avatar.name
+      let wsData = Object.keys(ctx.data).map(key => ({
+        position: ctx.data[key].body.position,
+        velocity: ctx.data[key].body.velocity,
+        didSpawn: ctx.data[key].didSpawn,
+        isOtherPlayer: ctx.data[key].isOtherPlayer,
+        id: ctx.data[key].id,
+        timestamp: Date.now()
       }))
+      ctx.ws.send(JSON.stringify(wsData))
 
       if(Object.keys(store).length > 0) {
         Object.keys(store).forEach(key => {
@@ -199,7 +204,14 @@ export default function Base(ctx, cannonContext) {
       
       base.tick()
 
-    }, 2000)
+    }, 500)
+  }
+
+
+  base.apply = (ctx) => {
+    base.ctx = ctx;
+
+    return base;
   }
 
   base.update = () => {
