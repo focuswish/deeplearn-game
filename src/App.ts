@@ -85,8 +85,8 @@ function World() {
   THREE.Object3D.DefaultUp.set(0, 0, 1)
 
 
-  let host = window.document.location.host.replace(/:.*/, '');
-  ctx.ws = new WebSocket('ws://' + host + ':3000');
+  let HOST = location.origin.replace(/^http/, 'ws')
+  ctx.ws = new WebSocket(HOST);
   ctx.data = {}
   ctx.players = []
 
