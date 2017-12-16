@@ -1,5 +1,6 @@
 
 import * as THREE from 'three'
+import * as CANNON from 'cannon'
 
 function Tree() {
   let ctx : any= {}
@@ -9,12 +10,13 @@ function Tree() {
   ctx.tiers = 6;
   
   function tighten(tier) {
-  	let vertices = ctx.geometry.vertices;
+  	let { vertices } = ctx.geometry
     let sides = ctx.sides;
     let vertexIndex;
     let vertexVector = new THREE.Vector3();
     let midPointVector = vertices[0].clone();
     let offset;
+
     for (let i = 0; i < sides; i++) {
       vertexIndex = (tier * sides) + 1;
       vertexVector = vertices[i + vertexIndex].clone();
@@ -77,6 +79,12 @@ function Tree() {
     return ctx;
   }
 
+  function createCannonBody() {
+    // radiusTop  radiusBottom  height  numSegments 
+    let cylinder = new CANNON.Cylinder ()
+    
+  }
+
   function create() {
     let scalarMultiplier = (Math.random() * (0.25 - 0.1)) + 0.05;
     let midPointVector = new THREE.Vector3();
@@ -86,7 +94,7 @@ function Tree() {
       color: 0x33ff33,
       flatShading: true
     });
-    let offset;
+
     midPointVector = ctx.geometry.vertices[0].clone();
     let currentTier = 0;
     let vertexIndex;
@@ -100,7 +108,8 @@ function Tree() {
   
     ctx.tree.add(createTrunk().trunk);
     ctx.tree.add(createTop().top);
-    
+    ctx.tree.name = 'tree'
+
     return ctx;
   }
   

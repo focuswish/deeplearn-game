@@ -6,8 +6,85 @@ import {
 import { 
   chunk
 } from 'lodash'
+import Base from './Base'
+import Tree from '../tree'
 
-export function initCannon(ctx) {
+export function spawnTrees(ctx, cannonContext) {
+  let { terrain, scene } = ctx;
+  let { base } = cannonContext;
+
+  return function spawn() {
+    let anchor = base.getRandomPointOnPerimeter()
+
+    for(let i = 0; i < 10; i++) {
+      let tree = Tree()
+      let scale = Math.random() * (1 - 0.5) + 0.5;
+      
+      anchor = anchor.add(new THREE.Vector3(0, 0.5, 0))
+      console.log(`anchor - ${i}`, anchor)
+      tree.rotation.set(Math.PI / 2, Math.PI / 2, 0)
+      tree.scale.set(scale, scale, scale)
+      tree.position.copy(anchor)
+
+      base.register(tree, null, 'trees', spawn)
+    }
+  }
+}
+
+
+export function addHeightfield(ctx, cannonContext) {
+  let matrix = []
+  let vert = ctx.tiles[0].geometry.vertices
+
+  let index = 0;
+  
+  for(let x = 0; x < Math.sqrt(vert.length); x++) {
+    matrix[x] = []
+
+    for(let y = 0; y < Math.sqrt(vert.length); y++) {
+      matrix[x][y] = vert[index].z;
+      index++
+    }
+  } 
+
+  let heightfieldShape = new CANNON.Heightfield(matrix, {
+    elementSize: 1 // Distance between the data points in X and Y directions
+  })  
+
+  let heightfieldBody = new CANNON.Body({
+    mass: 0,
+    material: cannonContext.physicsMaterial 
+  })  
+  
+  let angle = (Math.PI / 2) * -1;
+  let axis = new CANNON.Vec3(0, 0, 1)
+  heightfieldBody.quaternion.setFromAxisAngle(axis, angle)
+
+  heightfieldBody.position.set(-50, 50, 0)
+  heightfieldBody.addShape(heightfieldShape)
+  
+  cannonContext.world.addBody(heightfieldBody)
+
+  return heightfieldBody
+}
+
+function createPhysicsContactMaterial(world) {
+  let physicsMaterial = new CANNON.Material('slipperyMaterial')
+  
+  let physicsContactMaterial = new CANNON.ContactMaterial(
+    physicsMaterial,
+    physicsMaterial,
+    0.0, // friction coefficient
+    0.3  // restitution
+  );
+    
+  world.addContactMaterial(physicsContactMaterial);
+  
+  return physicsContactMaterial
+}
+
+function createDefaultPhysicsWorld() {
+
   let world = new CANNON.World();
   world.allowSleep = true;
   
@@ -30,231 +107,164 @@ export function initCannon(ctx) {
   world.gravity.set(0,0,-20);
   world.broadphase = new CANNON.NaiveBroadphase();
   
-  //world.addBody(body)
+  return world
+}
+
+function createPlayerSphere(cannonContext, { radius }) {
+   // Create a sphere
+  let playerSphereShape = new CANNON.Sphere(radius)
+  let playerSphereBody = new CANNON.Body({ mass: 1, material: cannonContext.physicsMaterial })
   
-  let matrix = []
-  let vert = ctx.tiles[0].geometry.vertices
+  playerSphereBody.addShape(playerSphereShape)
 
-  let index = 0;
-  
-  for(let x = 0; x < Math.sqrt(vert.length); x++) {
-    matrix[x] = []
+  playerSphereBody.position.set(0,0,5);
+  playerSphereBody.linearDamping = 0.9;
 
-    for(let y = 0; y < Math.sqrt(vert.length); y++) {
-      matrix[x][y] = vert[index].z;
-      //matrix[x][y] = 0;
-      index++
-    }
-  } 
+  cannonContext.world.addBody(playerSphereBody)
+  cannonContext.playerSphereBody = playerSphereBody
 
-  // Create a slippery material (friction coefficient = 0.0)
-  let physicsMaterial = new CANNON.Material('slipperyMaterial')
+  return playerSphereBody;
+}
 
-  let physicsContactMaterial = new CANNON.ContactMaterial(
-     physicsMaterial,
-     physicsMaterial,
-     0.0, // friction coefficient
-     0.3  // restitution
-  );
-  
-  world.addContactMaterial(physicsContactMaterial);
+function spawnBoxes(ctx, cannonContext) {
+  let {
+    base
+  } = cannonContext;
 
-  // Create a sphere
-  let sphereShape = new CANNON.Sphere(1)
-  let sphereBody = new CANNON.Body({ mass: 1, material: physicsMaterial })
-  
-  sphereBody.addShape(sphereShape)
+  return function spawn() {
+    let anchor = base.getRandomPointOnPerimeter()
 
-  sphereBody.position.set(0,0,5);
-  sphereBody.linearDamping = 0.9;
+    //let worldDirection = ctx.camera.getWorldDirection().clone()  
+    //let offset = worldDirection.clone().normalize().multiplyScalar(5)
+    //let {x,y} = ctx.avatar.position.clone().add(offset)
+    let geometry = new THREE.BoxGeometry(1, 1, 1)
+    let { vertices } = geometry;
+    vertices.forEach(vector => {
+      anchor.add(vector)
+      console.log(anchor)
+      let box = Box()
+      
+      // CANNON
+      box.body.position.copy(anchor)
+      base.register(box.mesh, box.body, 'boxes', spawn)
+    })   
 
-  world.addBody(sphereBody)
+    return cannonContext
+  }
+}
 
-  let heightfieldShape = new CANNON.Heightfield(matrix, {
-    elementSize: 1 // Distance between the data points in X and Y directions
-  })  
+function createSnowball(ctx, cannonContext) {
+  let snowball : any = {}
 
-  let heightfieldBody = new CANNON.Body({
-    mass: 0,
-    material: physicsMaterial 
-  })  
-  
-  let angle = (Math.PI / 2) * -1;
-  let axis = new CANNON.Vec3(0, 0, 1)
-  heightfieldBody.quaternion.setFromAxisAngle(axis, angle)
-
-  heightfieldBody.position.set(-50, 50, 0)
-  heightfieldBody.addShape(heightfieldShape)
-  
-  world.addBody(heightfieldBody);
-  let ballShape = new CANNON.Sphere(0.15)
-  let ballGeometry = new THREE.SphereGeometry(
-    ballShape.radius, 
+  snowball.shape = new CANNON.Sphere(0.15)
+  snowball.geometry = new THREE.SphereGeometry(
+    snowball.shape.radius, 
     32, 
     32
   )
+
+  snowball.body = new CANNON.Body({ mass: 2 });
+  setTimeout(() => snowball.body.sleep(), 5000)
+
+  snowball.body.addShape(snowball.shape)
+  snowball.material = new THREE.MeshLambertMaterial({ color: 0xffffff })
+  snowball.mesh = new THREE.Mesh( 
+    snowball.geometry, 
+    snowball.material 
+  )
+
+  snowball.mesh.castShadow = true;
+  snowball.mesh.receiveShadow = true;
+
+  
+  //cannonContext.world.addBody(snowball.body);
+  //ctx.scene.add(snowball.mesh);
+  cannonContext.base.register(snowball.mesh, snowball.body, 'snowballs')
+
+  return snowball;
+}
+
+function getShootDirection(event, ctx) {
+
+  let mouse = new THREE.Vector2();
+   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1; 
+
+   // get offset between camera and hero
+   let worldDirection = ctx.camera.getWorldDirection().clone()  
+   let offset = worldDirection.clone().normalize().multiplyScalar(3)
+
+   let raycaster = new THREE.Raycaster();
+   raycaster.setFromCamera(mouse, ctx.camera);
+   let intersects = raycaster.intersectObjects(ctx.scene.children);
+   
+   let distance = intersects[0] && intersects[0].distance || 10
+
+   let adjustedDirection = raycaster.ray.direction
+     .clone()
+     .multiplyScalar(distance)
+     .sub(offset)
+
+   let {x,y,z} = adjustedDirection
+
+   if(intersects && intersects.length > 0) {
+     let intersect = intersects[0]
+     if(intersect.object.name === 'box') {
+       intersect.object.material.color.set(0xff0000)      
+     }
+   }
+
+   z = z/Math.pow(10, 2)
+   return {x, y, z}
+ }
+
+
+export function Physics(ctx) {
+  let cannonContext : any = {}
+  
+  let world = createDefaultPhysicsWorld()
+  cannonContext.world = world;
+
+  let base = Base(ctx, cannonContext)
+  cannonContext.base = base;
+  // Create a slippery material (friction coefficient = 0.0)
+  let physicsMaterial = createPhysicsContactMaterial(world)
+  cannonContext.physicsMaterial = physicsMaterial;
+
+  let heightfield = addHeightfield(ctx, cannonContext)
+
+
+  // Create a sphere
+  let bottomSnowman = ctx.scene.getObjectByName('snowman/bottom', true)
+  bottomSnowman.children[0].geometry.computeBoundingSphere()
+  
+  console.log('bottomSnowman', bottomSnowman.children[0]) 
+  let { boundingSphere } = bottomSnowman.children[0].geometry;
+  let playerSphereBody = createPlayerSphere(cannonContext, boundingSphere)
   
   let shootVelo = 10;
   
-  function getShootDirection(event, ctx) {
-   let mouse = new THREE.Vector2();
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1; 
+  cannonContext.spawnBoxes = spawnBoxes(ctx, cannonContext)
+  cannonContext.spawnTrees = spawnTrees(ctx, cannonContext)
 
-    // get offset between camera and hero
-
-    let worldDirection = ctx.camera.getWorldDirection().clone()  
-    let offset = worldDirection.clone().normalize().multiplyScalar(3)
-
-    let raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, ctx.camera);
-    let intersects = raycaster.intersectObjects(ctx.scene.children);
-    
-    let distance = intersects[0] && intersects[0].distance || 10
-
-    let adjustedDirection = raycaster.ray.direction
-      .clone()
-      .multiplyScalar(distance)
-      .sub(offset)
-
-    let {x,y,z} = adjustedDirection
-
-    if(intersects && intersects.length > 0) {
-      let intersect = intersects[0]
-      if(intersect.object.name === 'box') {
-        intersect.object.material.color.set(0xff0000)      
-      }
-    }
-
-    z = z/Math.pow(shootVelo, 2)
-    return {x, y, z}
-  }
-
-  let balls = []
-  let ballMeshes = []
-  let boxes = []
-  let position = [-25, 5, 2]
-  let v = [...position]
-
-  let boxMeshGroup = new THREE.Group()
-
-  function createBoxMeshGroup() {
-    let worldDirection = ctx.camera.getWorldDirection().clone()  
-    let offset = worldDirection.clone().normalize().multiplyScalar(5)
-    let {x,y} = ctx.avatar.position.clone().add(offset)
-
-    console.log({worldDirection, offset, x, y})
-    for(let i = 0; i < 10; i++) {
-      let dx = i % 5 * 0.5
-
-      for(let j = 0; j < 10; j++) {
-         // THREE
-        let box = Box()
-        boxMeshGroup.add(box.mesh)
-        
-        // CANNON
-        let dy = j % 5 * 0.5
-        box.body.position.set(x + dx, y + dy, 1)
-      
-        world.addBody(box.body)
-        boxes.push(box.body)
-      }
-
-      setTimeout(function() {
-        boxes.forEach(box => world.remove(box))
-        boxes = []
-        
-        boxMeshGroup.children.forEach(mesh => {
-          boxMeshGroup.remove(mesh)
-          mesh.geometry.dispose()
-          mesh.material.dispose()
-          ctx.scene.remove(mesh)
-        })
-      }, 5000)
-    }
-    
-    ctx.scene.add(boxMeshGroup)
-    
-    return {
-      boxMeshGroup,
-      boxes
-    }
-  }
-
-  //boxMeshes.push(box.mesh)
- 
-  /*for(let k = 0; k < 10; k++) {
-    v[0] += 5;
-    for(let i = 0; i < 8; i++) {
-      v[2] = position[2]
-      v[0] += 0.5
-
-      for(let j = 0; j < 3; j++) {
-        v[2] += 0.5;
-        let box = Box()
-          
-        box.body.position.set(...v)
-        box.mesh.position.set(...v)
-      
-        world.addBody(box.body)
-        ctx.scene.add(box.mesh)
-      
-        boxes.push(box.body)
-        boxMeshes.push(box.mesh)
-      }    
-    }
-  }*/
-
-  let material = new THREE.MeshLambertMaterial({ color: 0xffffff })
-  
   window.addEventListener('click',function(e) {
     console.log('click', e)
     let {
       x, y, z
-    } = sphereBody.position;
-
-    let ballBody = new CANNON.Body({ mass: 2 });
-    setTimeout(() => ballBody.sleep(), 2000)
-
-    ballBody.addShape(ballShape)
-    
-    let ballMesh = new THREE.Mesh( ballGeometry, material );
-    
-    world.addBody(ballBody);
-    
-    ctx.scene.add(ballMesh);
-    
-    ballMesh.castShadow = true;
-    ballMesh.receiveShadow = true;
-
-    balls.push(ballBody);
-    ballMeshes.push(ballMesh)
+    } = playerSphereBody.position;
+    let snowball = createSnowball(ctx, cannonContext)
 
     let shootDirection = getShootDirection(event, ctx);
     
-    ballBody.velocity.set(  
+    snowball.body.velocity.set(  
       shootDirection.x * shootVelo,
       shootDirection.y * shootVelo,
       shootDirection.z
     )
-    
-    //x += Math.sign(shootDirection.x) * (sphereShape.radius * 1.02 + ballShape.radius);
-    //y += Math.sign(shootDirection.y) * (sphereShape.radius * 1.02 + ballShape.radius);
-    //z += (sphereShape.radius * 1.02 + ballShape.radius);
-    
-    //z += shootDirection.z * (sphereShape.radius * 1.02 + ballShape.radius);
-    //z += (sphereShape.radius * 1.02 + ballShape.radius);
-    ballBody.position.set(x,y,z);
-    ballMesh.position.set(x,y,z);
+
+    snowball.body.position.set(x,y,z);
+    snowball.mesh.position.set(x,y,z);
   })
 
-  return {
-    world,
-    ballMeshes,
-    balls,
-    boxes,
-    sphereBody,
-    boxMeshGroup,
-    createBoxMeshGroup
-  }
+  return cannonContext
 }

@@ -67,12 +67,12 @@ export function Stone(x = 0.5, y = 2, z = 1) {
 }
 
 export function Box() {
-  let dimensions = [0.25, 0.25, 0.25]
-  // CANNON
 
+  let dimensions = [0.25, 0.25, 0.25]
+  
+  // CANNON
   let cannonBoxShape = new CANNON.Box(new CANNON.Vec3(...dimensions))
   let body = new CANNON.Body({ mass: 5 })
-
   body.addShape(cannonBoxShape)
 
   // THREE
@@ -89,7 +89,6 @@ export function Box() {
   )
 
   mesh.name = 'box'
-
   mesh.castShadow = true;
   mesh.receiveShadow = true;
 
@@ -140,27 +139,6 @@ export function generateTerrainObjects(ctx, anchor) {
     woodMesh.scale.set(0.5, 0.5, 0.5)
     woodMesh.position.set(50 + (i * 0.5), 50, 0)    
     scene.add(woodMesh)
-  }
-}
-
-export function generateTrees(ctx, anchor) {
-  let { terrain, scene } = ctx;
-  
-  for(let i = 0; i < 100; i++) {
-    let tree = Tree()
-    let scale = Math.random() * (1 - 0.5) + 0.5;
-    
-    if(Math.abs(anchor[0]) > 40) {
-      anchor[1] += 0.5;
-    } else {
-      anchor[0] += 0.5
-    }
-    
-    tree.rotation.set(Math.PI / 2, Math.PI / 2, 0)
-    tree.scale.set(scale, scale, scale)
-    tree.position.set(...anchor)
-
-    scene.add(tree)
   }
 }
 
