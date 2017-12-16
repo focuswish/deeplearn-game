@@ -173,7 +173,7 @@ async function World() {
   light()
   let avatarId = uuid()
   let avatar = Avatar(avatarId)
-  ctx.avatar = avatar;
+  //ctx.avatar = avatar;
 
   ctx.data[avatar.name] = {}
   ctx.data[avatar.name].mesh = avatar;
@@ -182,7 +182,10 @@ async function World() {
   ctx.data[avatar.name].id = avatar.name
   ctx.data[avatar.name].timestamp = Date.now()
 
-  ctx.scene.add(ctx.avatar)
+  ctx.scene.add(ctx.data[avatar.name].mesh)
+
+  ctx.avatar = ctx.data[avatar.name].mesh;
+
   ctx.scene.updateMatrixWorld()
 
   let cannonContext = Physics(ctx)
@@ -211,12 +214,19 @@ async function World() {
   }
 
   let timeStep = 1/60
-  let start = Date.now()
+  let fixedTimeStep = 0.5; // seconds
+  let maxSubSteps = 3;   
+  const time = () => new Date().getTime() / 1000;
+
+  let start = time()
   
   function updatePhysics() {
     // Step the physics world
-    ctx.world.step(timeStep)
-  
+    var timeSinceLastCall = time() - start
+ 
+    //ctx.world.step(timeStep)
+    ctx.world.step(timeStep, timeSinceLastCall, maxSubSteps);
+    
     base.sync('snowballs')
     base.sync('boxes')
 
@@ -230,11 +240,11 @@ async function World() {
         player.mesh.children[0].quaternion.copy(player.body.quaternion)
       })
     }
-    ctx.controls.update(Date.now() - start);
+    ctx.controls.update(timeSinceLastCall);
 
     base.update()
       
-    start = Date.now() 
+    start = time()
   }
 
   function render() {    
@@ -327,15 +337,32 @@ async function World() {
           ctx.data[message.id].id = message.id;
           ctx.data[message.id].isOtherPlayer = true;
         } 
-  
-        let { position, velocity } = player.message;
-        let positionVector = new THREE.Vector3(position)
-        let velocityVector = new THREE.Vector3(velocity)
+        let latency = time() - ctx.data[message.id].timestamp
+        ctx.data[message.id].latency = latency;
+        ctx.data[message.id].timestamp = player.timestamp;
+        let currentPosition = player.body.position.clone()
+        let currentVelocity = player.body.velocity.clone()
 
-        player.body.position.copy(positionVector.multiply(velocityVector))
-  
-        player.body.velocity.copy(velocityVector)
-  
+        let { position, velocity } = player.message;
+
+        let nextPosition = new CANNON.Vec3(position.x, position.y, position.z)
+        let nextVelocity = new CANNON.Vec3(velocity.x, velocity.y, velocity.z)
+    
+        let interpolatedPosition = new CANNON.Vec3()
+        let interpolatedVelocity = new CANNON.Vec3()
+        currentPosition.lerp(nextPosition, latency / 1000, interpolatedPosition)
+        currentVelocity.lerp(nextVelocity, latency / 1000, interpolatedVelocity)
+        /*console.log({
+          interpolatedPosition,
+          interpolatedVelocity,
+          nextPosition,
+          nextVelocity,
+          currentPosition,
+          currentVelocity
+        })*/
+        player.body.position.copy(interpolatedPosition)
+        player.body.velocity.copy(interpolatedVelocity)
+   
         console.log(ctx.data)
       })
     };

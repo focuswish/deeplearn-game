@@ -166,6 +166,7 @@ export default function Base(ctx, cannonContext) {
     setTimeout(() => {
       let player = cannonContext.playerSphereBody;
       console.log(player)
+      console.log(ctx)
       let wsData = Object.keys(ctx.data).map(key => ({
         position: ctx.data[key].body.position,
         velocity: ctx.data[key].body.velocity,
