@@ -5,9 +5,11 @@ import {
   Box 
 } from '../components/objects'
 import { 
-  chunk
+  chunk,
+  get
 } from 'lodash'
 import Tree from '../components/Tree'
+import * as uuid from 'uuid/v4'
 
 export function spawnTrees(ctx, cannonContext) {
   let { terrain, scene } = ctx;
@@ -152,34 +154,34 @@ function spawnBoxes(ctx, cannonContext) {
 }
 
 function createSnowball(ctx, cannonContext) {
+
   let snowball : any = {}
 
-  snowball.shape = new CANNON.Sphere(0.15)
-  snowball.geometry = new THREE.SphereGeometry(
-    snowball.shape.radius, 
-    32, 
-    32
-  )
+  return function(id) {
+    snowball.shape = new CANNON.Sphere(0.15)
+    snowball.geometry = new THREE.SphereGeometry(
+      snowball.shape.radius, 
+      32, 
+      32
+    )
 
-  snowball.body = new CANNON.Body({ mass: 2 });
-  setTimeout(() => snowball.body.sleep(), 5000)
+    snowball.body = new CANNON.Body({ mass: 2 });
+    setTimeout(() => snowball.body.sleep(), 5000)
 
-  snowball.body.addShape(snowball.shape)
-  snowball.material = new THREE.MeshLambertMaterial({ color: 0xffffff })
-  snowball.mesh = new THREE.Mesh( 
-    snowball.geometry, 
-    snowball.material 
-  )
+    snowball.body.addShape(snowball.shape)
+    snowball.material = new THREE.MeshLambertMaterial({ color: 0xffffff })
+    snowball.mesh = new THREE.Mesh( 
+      snowball.geometry, 
+      snowball.material 
+    )
 
-  snowball.mesh.castShadow = true;
-  snowball.mesh.receiveShadow = true;
+    snowball.mesh.castShadow = true;
+    snowball.mesh.receiveShadow = true;
+    snowball.mesh.name = id
+    cannonContext.base.register(snowball.mesh, snowball.body, 'snowballs')
 
-  
-  //cannonContext.world.addBody(snowball.body);
-  //ctx.scene.add(snowball.mesh);
-  cannonContext.base.register(snowball.mesh, snowball.body, 'snowballs')
-
-  return snowball;
+    return snowball;
+  }
 }
 
 function getShootDirection(event, ctx) {
@@ -207,8 +209,10 @@ function getShootDirection(event, ctx) {
 
    if(intersects && intersects.length > 0) {
      let intersect = intersects[0]
-     if(intersect.object.name === 'box') {
-       intersect.object.material.color.set(0xff0000)      
+     console.log(intersect)
+     if(get(intersect, ['object', 'userData', 'type']) === 'player') {
+       console.log(intersect)
+       intersect.object.material.color.set(0xff0000)  
      }
    }
 
@@ -243,12 +247,13 @@ export function Physics(ctx) {
   
   cannonContext.spawnBoxes = spawnBoxes(ctx, cannonContext)
   cannonContext.spawnTrees = spawnTrees(ctx, cannonContext)
+  cannonContext.createSnowball = createSnowball(ctx, cannonContext)
 
   window.addEventListener('click',function(e) {
     let {
       x, y, z
     } = playerSphereBody.position;
-    let snowball = createSnowball(ctx, cannonContext)
+    let snowball = createSnowball(ctx, cannonContext)(uuid())
 
     let shootDirection = getShootDirection(event, ctx);
     
@@ -260,6 +265,14 @@ export function Physics(ctx) {
 
     snowball.body.position.set(x,y,z);
     snowball.mesh.position.set(x,y,z);
+
+    ctx.ws.send(JSON.stringify({
+      position: {x, y, z},
+      velocity: snowball.body.velocity,
+      id: snowball.mesh.name,
+      timestamp: new Date().getTime() / 1000,
+      type: 'snowball'
+    }))
   })
 
   return cannonContext

@@ -18,7 +18,9 @@ const { generateTerrain } = require('fractal-terrain-generator')
 let heightmap = []
 
 function createHeightmap() {
-  heightmap = generateTerrain(100, 100, 0.4)
+  heightmap = generateTerrain(100, 100, 0.4).map(row => 
+    row.map(z => z + 2)
+  )
 }
 
 const interval = setInterval(() => {

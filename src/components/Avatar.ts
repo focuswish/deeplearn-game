@@ -62,9 +62,10 @@ export default function Avatar(id) {
   middleSnowman.add(twig1)
 
   let avatar = new THREE.Group()
-  //avatar.name = 'snowman'
-  avatar.name = id
 
+  avatar.name = id
+  avatar.userData.type = 'player'
+  
   avatar.add(bottomSnowman)
   avatar.add(middleSnowman)
   avatar.add(topSnowman)

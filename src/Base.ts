@@ -165,16 +165,16 @@ export default function Base(ctx, cannonContext) {
     
     setTimeout(() => {
       let player = cannonContext.playerSphereBody;
-      console.log(player)
-      console.log(ctx)
-      let wsData = Object.keys(ctx.data).map(key => ({
+      let key = ctx.avatar.name;
+
+      let wsData = {
         position: ctx.data[key].body.position,
         velocity: ctx.data[key].body.velocity,
         didSpawn: ctx.data[key].didSpawn,
-        isOtherPlayer: ctx.data[key].isOtherPlayer,
         id: ctx.data[key].id,
-        timestamp: new Date().getTime() / 1000
-      }))
+        timestamp: new Date().getTime() / 1000,
+        type: 'player'
+      }
       ctx.ws.send(JSON.stringify(wsData))
 
       if(Object.keys(store).length > 0) {

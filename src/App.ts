@@ -173,14 +173,12 @@ async function World() {
   light()
   let avatarId = uuid()
   let avatar = Avatar(avatarId)
-  //ctx.avatar = avatar;
 
   ctx.data[avatar.name] = {}
   ctx.data[avatar.name].mesh = avatar;
-  ctx.data[avatar.name].isOtherPlayer = false;
-  ctx.data[avatar.name].didSpawn = true;
+  ctx.data[avatar.name].didSpawn = false;
   ctx.data[avatar.name].id = avatar.name
-  ctx.data[avatar.name].timestamp = Date.now()
+  ctx.data[avatar.name].timestamp = new Date().getTime() / 1000
 
   ctx.scene.add(ctx.data[avatar.name].mesh)
 
@@ -196,9 +194,6 @@ async function World() {
       playerSphereBody,
   } = cannonContext;
   ctx.data[avatar.name].body = playerSphereBody;
-  
-  //generateTerrainObjects(ctx, randomPositionOnTerrain())
-  //generateCampfire(ctx)
 
   // CANNON
   ctx.world = cannonContext.world;
@@ -216,10 +211,12 @@ async function World() {
   let timeStep = 1/60
   let fixedTimeStep = 0.5; // seconds
   let maxSubSteps = 3;   
+
   const time = () => new Date().getTime() / 1000;
 
   let start = time()
-  
+  let lastUpdated = time()
+
   function updatePhysics() {
     // Step the physics world
     var timeSinceLastCall = time() - start
@@ -236,6 +233,17 @@ async function World() {
     if(Object.keys(ctx.data).length > 0) {
       Object.keys(ctx.data).forEach(key => {
         let player = ctx.data[key]
+        //let nextPosition = player.body.position;
+        //let currentMeshPosition = new CANNON.Vec3().copy(player.mesh.position)
+        //let nextMeshPosition = new CANNON.Vec3()
+
+        //if(player.shouldUpdate) {
+        //  lastUpdated = time() 
+        //  player.shouldUpdate = false;
+        //}
+        //let diff = time() - lastUpdated;
+        //if(diff > 1) diff = 1;
+        //currentMeshPosition.lerp(nextPosition, diff, player.mesh.position)
         player.mesh.position.copy(player.body.position)
         player.mesh.children[0].quaternion.copy(player.body.quaternion)
       })
@@ -309,65 +317,75 @@ async function World() {
     })
 
     ctx.ws.onmessage = function (event) {
-      let messages = JSON.parse(event.data)
+      let message = JSON.parse(event.data)
       
-      messages.forEach(message => {
-        if(!ctx.data[message.id]) ctx.data[message.id] = {}
-        
-        let player = ctx.data[message.id]
-        player.message = message;
-        
-        if(!player.didSpawn) {
-          let snowman = Avatar(message.id)
-          ctx.scene.add(snowman)
-          ctx.data[message.id].mesh = snowman
-  
-          let playerSphereShape = new CANNON.Sphere(0.3)
-          let playerSphereBody = new CANNON.Body({ 
-            mass: 1, 
-            material: cannonContext.physicsMaterial 
-          })
-          
-          playerSphereBody.addShape(playerSphereShape)
-          playerSphereBody.linearDamping = 0.9;
-        
-          cannonContext.world.addBody(playerSphereBody)
-          ctx.data[message.id].body = playerSphereBody
-          ctx.data[message.id].didSpawn = true;
-          ctx.data[message.id].id = message.id;
-          ctx.data[message.id].isOtherPlayer = true;
-        } 
-        let latency = time() - ctx.data[message.id].timestamp
-        ctx.data[message.id].latency = latency;
-        ctx.data[message.id].timestamp = player.timestamp;
-        let currentPosition = player.body.position.clone()
-        let currentVelocity = player.body.velocity.clone()
+      if(message.type === 'snowball') {
 
-        let { position, velocity } = player.message;
+        let snowball = cannonContext.createSnowball(message.id)
 
-        let nextPosition = new CANNON.Vec3(position.x, position.y, position.z)
-        let nextVelocity = new CANNON.Vec3(velocity.x, velocity.y, velocity.z)
+        snowball.body.velocity.set(  
+          message.velocity.x,
+          message.velocity.y,
+          message.velocity.z
+        )
     
-        let interpolatedPosition = new CANNON.Vec3()
-        let interpolatedVelocity = new CANNON.Vec3()
-        currentPosition.lerp(nextPosition, latency / 1000, interpolatedPosition)
-        currentVelocity.lerp(nextVelocity, latency / 1000, interpolatedVelocity)
-        /*console.log({
-          interpolatedPosition,
-          interpolatedVelocity,
-          nextPosition,
-          nextVelocity,
-          currentPosition,
-          currentVelocity
-        })*/
-        if(player.isOtherPlayer) {
+        snowball.body.position.set(
+          message.position.x,
+          message.position.y,
+          message.position.z
+        );
+        snowball.mesh.position.set(
+          message.position.x,
+          message.position.y,
+          message.position.z
+        );
+
+        return
+      }
+
+      if(message.type !== 'player') return
+
+      if(!ctx.data[message.id]) ctx.data[message.id] = {}
+        
+      let cached = ctx.data[message.id]
+      cached.message = message;
+
+      if(message.id === avatarId) return  
+
+      if(!cached.didSpawn) {
+        ctx.data[message.id].didSpawn = true;
+
+        let snowman = Avatar(message.id)
+        ctx.scene.add(snowman)
+        ctx.data[message.id].mesh = snowman
+  
+        let playerSphereShape = new CANNON.Sphere(0.3)
+        let playerSphereBody = new CANNON.Body({ 
+          mass: 1, 
+          material: cannonContext.physicsMaterial 
+        })
           
-        }
-        player.body.position.copy(interpolatedPosition)
-        player.body.velocity.copy(interpolatedVelocity)
-   
-        console.log(ctx.data)
-      })
+        playerSphereBody.addShape(playerSphereShape)
+        playerSphereBody.linearDamping = 0.9;
+        playerSphereBody.addEventListener('collide', function(evt) {
+          console.log('evt', evt)
+        });
+        
+        cannonContext.world.addBody(playerSphereBody)
+        ctx.data[message.id].body = playerSphereBody
+      } 
+
+      ctx.data[message.id].latency = time() - cached.timestamp
+
+      let { position, velocity } = message;
+
+      let nextPosition = new CANNON.Vec3(position.x, position.y, position.z)
+      let nextVelocity = new CANNON.Vec3(velocity.x, velocity.y, velocity.z)
+    
+      cached.body.position.copy(nextPosition)
+      cached.body.velocity.copy(nextVelocity)
+
+      console.log(ctx.data)
     };
   
     return ctx;
