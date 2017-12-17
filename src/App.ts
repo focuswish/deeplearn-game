@@ -267,7 +267,7 @@ async function World() {
             lastUpdated = time()
           }
 
-          let t = time() - lastUpdated;
+          let t = (time() - lastUpdated) * 2;
           player.mesh.position.copy(
             lerp(
               player.mesh.position, 
@@ -397,7 +397,7 @@ async function World() {
 
       let nextPosition = new THREE.Vector3(position.x, position.y, position.z)
       let nextVelocity = new CANNON.Vec3(velocity.x, velocity.y, velocity.z)
-      nextPosition = nextPosition.lerp(nextPosition.clone().add(nextVelocity), 0.2)
+      //nextPosition = nextPosition.lerp(nextPosition.clone().add(nextVelocity), 0.2)
       cached.body.position.copy(nextPosition)
       cached.body.velocity.copy(nextVelocity)
 
