@@ -267,11 +267,11 @@ async function World() {
             lastUpdated = time()
           }
 
-          let t = (time() - lastUpdated) * 2;
+          let t = (time() - lastUpdated)
           player.mesh.position.copy(
             lerp(
               player.mesh.position, 
-              player.body.position, 
+              player.body.velocity, 
               t
             )
           )

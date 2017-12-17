@@ -76130,8 +76130,8 @@ function World() {
                             ctx.data[key].shouldUpdate = false;
                             lastUpdated = time();
                         }
-                        let t = (time() - lastUpdated) * 2;
-                        player.mesh.position.copy(lerp(player.mesh.position, player.body.position, t));
+                        let t = (time() - lastUpdated);
+                        player.mesh.position.copy(lerp(player.mesh.position, player.body.velocity, t));
                     }
                 });
             }
