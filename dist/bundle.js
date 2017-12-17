@@ -76568,6 +76568,7 @@ function createIceLance(ctx, cannonContext) {
         mesh.receiveShadow = true;
         mesh.name = id;
         mesh.rotation.set(...velocity.toArray());
+        //base.quaternion.setFromVectors()
         cannonContext.base.register(mesh, body, 'icelances');
         body.position.copy(position);
         body.velocity.copy(velocity);
