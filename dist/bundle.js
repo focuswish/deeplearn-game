@@ -76131,7 +76131,7 @@ function World() {
                             lastUpdated = time();
                         }
                         let t = (time() - lastUpdated);
-                        player.mesh.position.copy(lerp(player.mesh.position, player.body.velocity, t));
+                        player.mesh.position.copy(lerp(player.mesh.position, Object.assign({}, player.body.velocity, { z: player.body.position.z }), t));
                     }
                 });
             }

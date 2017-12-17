@@ -271,7 +271,7 @@ async function World() {
           player.mesh.position.copy(
             lerp(
               player.mesh.position, 
-              player.body.velocity, 
+              {...player.body.velocity, z: player.body.position.z }, 
               t
             )
           )
