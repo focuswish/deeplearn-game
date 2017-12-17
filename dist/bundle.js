@@ -76118,30 +76118,20 @@ function World() {
                 players.forEach(key => {
                     let player = ctx.data[key];
                     let vec = new CANNON.Vec3().copy(player.mesh.position);
-                    player.mesh.position.copy(player.body.position);
-                    player.mesh.children[0].quaternion.copy(player.body.quaternion);
-                    /*if(player.id === avatarId) {
-                      
-                      player.mesh.position.copy(player.body.position)
-                      player.mesh.children[0].quaternion.copy(player.body.quaternion)
-                    } else {
-                      if(player.shouldUpdate) {
-                        ctx.data[key].shouldUpdate = false;
-                        lastUpdated = time()
-                      }
-            
-                      let t = time() - lastUpdated;
-                      console.log(t)
-                      player.mesh.position.copy(
-                        lerp(
-                          player.mesh.position,
-                          player.body.position,
-                          t
-                        )
-                      )
-            
-                      player.mesh.children[0].quaternion.copy(player.body.quaternion)
-                    }*/
+                    //player.mesh.position.copy(player.body.position)
+                    //player.mesh.children[0].quaternion.copy(player.body.quaternion)
+                    if (player.id === avatarId) {
+                        player.mesh.position.copy(player.body.position);
+                        player.mesh.children[0].quaternion.copy(player.body.quaternion);
+                    }
+                    else {
+                        if (player.shouldUpdate) {
+                            ctx.data[key].shouldUpdate = false;
+                            lastUpdated = time();
+                        }
+                        let t = time() - lastUpdated;
+                        player.mesh.position.copy(lerp(player.mesh.position, player.body.position, t));
+                    }
                 });
             }
             ctx.controls.update(timeSinceLastCall);

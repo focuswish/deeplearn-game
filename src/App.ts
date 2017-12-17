@@ -253,10 +253,10 @@ async function World() {
         let player = ctx.data[key]
         let vec = new CANNON.Vec3().copy(player.mesh.position)
         
-        player.mesh.position.copy(player.body.position)
-        player.mesh.children[0].quaternion.copy(player.body.quaternion)
+        //player.mesh.position.copy(player.body.position)
+        //player.mesh.children[0].quaternion.copy(player.body.quaternion)
 
-        /*if(player.id === avatarId) {
+        if(player.id === avatarId) {
           
           player.mesh.position.copy(player.body.position)
           player.mesh.children[0].quaternion.copy(player.body.quaternion)
@@ -267,7 +267,6 @@ async function World() {
           }
 
           let t = time() - lastUpdated;
-          console.log(t)
           player.mesh.position.copy(
             lerp(
               player.mesh.position, 
@@ -275,9 +274,7 @@ async function World() {
               t
             )
           )
-
-          player.mesh.children[0].quaternion.copy(player.body.quaternion)
-        }*/
+        }
       })
     }
 
