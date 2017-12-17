@@ -221,7 +221,7 @@ async function World() {
   let maxSubSteps = 3;   
 
   function lerp(v1, v2, t) {
-    if(t > 1) t = 1;
+    //if(t > 1) t = 1;
 
     let target = new THREE.Vector3(
       v1.x + ((v2.x - v1.x) * t),

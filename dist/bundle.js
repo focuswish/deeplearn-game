@@ -76100,8 +76100,7 @@ function World() {
         let fixedTimeStep = 0.5; // seconds
         let maxSubSteps = 3;
         function lerp(v1, v2, t) {
-            if (t > 1)
-                t = 1;
+            //if(t > 1) t = 1;
             let target = new THREE.Vector3(v1.x + ((v2.x - v1.x) * t), v1.y + ((v2.y - v1.y) * t), v1.z + ((v2.z - v1.z) * t));
             return target;
         }
