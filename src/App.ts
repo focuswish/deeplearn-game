@@ -221,11 +221,12 @@ async function World() {
   let maxSubSteps = 3;   
 
   function lerp(v1, v2, t) {
-    
+    if(t > 1) t = 1;
+
     let target = new THREE.Vector3(
-      v1.x + (v2.x - v1.x) * t,
-      v1.y + (v2.y - v1.y) * t,
-      v1.z + (v2.z - v1.z) * t
+      v1.x + ((v2.x - v1.x) * t),
+      v1.y + ((v2.y - v1.y) * t),
+      v1.z + ((v2.z - v1.z) * t)
     )
 
     return target
@@ -394,9 +395,9 @@ async function World() {
 
       let { position, velocity } = message;
 
-      let nextPosition = new CANNON.Vec3(position.x, position.y, position.z)
+      let nextPosition = new THREE.Vector3(position.x, position.y, position.z)
       let nextVelocity = new CANNON.Vec3(velocity.x, velocity.y, velocity.z)
-    
+      nextPosition = nextPosition.lerp(nextPosition.clone().add(nextVelocity), 0.2)
       cached.body.position.copy(nextPosition)
       cached.body.velocity.copy(nextVelocity)
 
