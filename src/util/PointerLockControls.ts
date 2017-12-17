@@ -152,10 +152,10 @@ function PointerLockControls(camera, cannonBody, avatar) {
           let direction = camera.getWorldDirection();
           
           if (moveForward){
-            inputVelocity = direction.multiplyScalar(2)
+            inputVelocity = direction.multiplyScalar(0.5)
           }
           if (moveBackward){
-            inputVelocity = direction.negate().multiplyScalar(2)
+            inputVelocity = direction.negate().multiplyScalar(0.5)
           }
   
           if (moveLeft) {

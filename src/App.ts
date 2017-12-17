@@ -12,7 +12,7 @@ import {
   generateCampfire
 } from './components/objects'
 import Terrain from './components/Terrain'
-import Avatar from './components/Avatar'
+import Snowman from './components/Snowman'
 import Tree from './components/Tree';
 import PointerLockControls from './util/PointerLockControls'
 import * as uuid from 'uuid/v4'
@@ -74,8 +74,8 @@ async function World() {
   ctx.renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(ctx.renderer.domElement);
 
-  ctx.zoom = 1;
-  ctx.tilt = -3;
+  ctx.zoom = 2;
+  ctx.tilt = -4;
 
   ctx.camera.position.x = 0;
   ctx.camera.position.y = ctx.tilt;
@@ -125,14 +125,10 @@ async function World() {
   }
 
   async function createMap() {
-    ctx.terrain.geometry = new THREE.Geometry();
-    //let altitude = fractal.generateTerrain(100, 100, 0.4)
-    
+    ctx.terrain.geometry = new THREE.Geometry();    
     let heightmap = await fetch('/heightmap')
       .then(resp => resp.json())
     
-    console.log(heightmap)
-
     let terrain = Terrain({
       position: [0, 0, 0],
       color: 0x7cfc00,
@@ -171,8 +167,20 @@ async function World() {
   await createMap()
 
   light()
+
+  
+  
+  const loadFont = async () => {
+    let loader = new THREE.FontLoader();
+    return new Promise((resolve, reject) => {
+      loader.load('/fonts/helvetiker.json', font => resolve(font))
+    })
+  }
+
+  let font = await loadFont()
+  console.log(font)
   let avatarId = uuid()
-  let avatar = Avatar(avatarId)
+  let avatar = Snowman(avatarId, font)
 
   ctx.data[avatar.name] = {}
   ctx.data[avatar.name].mesh = avatar;
@@ -212,44 +220,68 @@ async function World() {
   let fixedTimeStep = 0.5; // seconds
   let maxSubSteps = 3;   
 
-  const time = () => new Date().getTime() / 1000;
+  function lerp(v1, v2, t) {
+    
+    let target = new THREE.Vector3(
+      v1.x + (v2.x - v1.x) * t,
+      v1.y + (v2.y - v1.y) * t,
+      v1.z + (v2.z - v1.z) * t
+    )
 
+    return target
+  }
+
+  const time = () => new Date().getTime() / 1000;
+  
   let start = time()
   let lastUpdated = time()
-
+  
   function updatePhysics() {
     // Step the physics world
     var timeSinceLastCall = time() - start
- 
-    //ctx.world.step(timeStep)
     ctx.world.step(timeStep, timeSinceLastCall, maxSubSteps);
     
     base.sync('snowballs')
     base.sync('boxes')
+    base.sync('icelances')
+     
+    let players = Object.keys(ctx.data)
+     
 
-    //ctx.avatar.position.copy(ctx.playerSphereBody.position)
-    //ctx.avatar.children[0].quaternion.copy(ctx.playerSphereBody.quaternion)
-  
-    if(Object.keys(ctx.data).length > 0) {
-      Object.keys(ctx.data).forEach(key => {
+    if(players.length > 0) {
+      players.forEach(key => {
         let player = ctx.data[key]
-        //let nextPosition = player.body.position;
-        //let currentMeshPosition = new CANNON.Vec3().copy(player.mesh.position)
-        //let nextMeshPosition = new CANNON.Vec3()
-
-        //if(player.shouldUpdate) {
-        //  lastUpdated = time() 
-        //  player.shouldUpdate = false;
-        //}
-        //let diff = time() - lastUpdated;
-        //if(diff > 1) diff = 1;
-        //currentMeshPosition.lerp(nextPosition, diff, player.mesh.position)
+        let vec = new CANNON.Vec3().copy(player.mesh.position)
+        
         player.mesh.position.copy(player.body.position)
         player.mesh.children[0].quaternion.copy(player.body.quaternion)
+
+        /*if(player.id === avatarId) {
+          
+          player.mesh.position.copy(player.body.position)
+          player.mesh.children[0].quaternion.copy(player.body.quaternion)
+        } else {
+          if(player.shouldUpdate) {
+            ctx.data[key].shouldUpdate = false;
+            lastUpdated = time()
+          }
+
+          let t = time() - lastUpdated;
+          console.log(t)
+          player.mesh.position.copy(
+            lerp(
+              player.mesh.position, 
+              player.body.position, 
+              t
+            )
+          )
+
+          player.mesh.children[0].quaternion.copy(player.body.quaternion)
+        }*/
       })
     }
-    ctx.controls.update(timeSinceLastCall);
 
+    ctx.controls.update(timeSinceLastCall)
     base.update()
       
     start = time()
@@ -321,24 +353,19 @@ async function World() {
       
       if(message.type === 'snowball') {
 
-        let snowball = cannonContext.createSnowball(message.id)
-
-        snowball.body.velocity.set(  
-          message.velocity.x,
-          message.velocity.y,
-          message.velocity.z
+        let snowball = cannonContext.createIceLance(
+          message.id,
+          new THREE.Vector3(
+            message.position.x,
+            message.position.y,
+            message.position.z
+          ),
+          new THREE.Vector3(
+            message.velocity.x,
+            message.velocity.y,
+            message.velocity.z
+          )
         )
-    
-        snowball.body.position.set(
-          message.position.x,
-          message.position.y,
-          message.position.z
-        );
-        snowball.mesh.position.set(
-          message.position.x,
-          message.position.y,
-          message.position.z
-        );
 
         return
       }
@@ -355,27 +382,18 @@ async function World() {
       if(!cached.didSpawn) {
         ctx.data[message.id].didSpawn = true;
 
-        let snowman = Avatar(message.id)
+        let snowman = Snowman(message.id, font)
         ctx.scene.add(snowman)
         ctx.data[message.id].mesh = snowman
   
-        let playerSphereShape = new CANNON.Sphere(0.3)
-        let playerSphereBody = new CANNON.Body({ 
-          mass: 1, 
-          material: cannonContext.physicsMaterial 
-        })
-          
-        playerSphereBody.addShape(playerSphereShape)
-        playerSphereBody.linearDamping = 0.9;
-        playerSphereBody.addEventListener('collide', function(evt) {
-          console.log('evt', evt)
-        });
+        let playerSphereBody = cannonContext.createPlayerSphere()
         
         cannonContext.world.addBody(playerSphereBody)
         ctx.data[message.id].body = playerSphereBody
       } 
 
       ctx.data[message.id].latency = time() - cached.timestamp
+      ctx.data[message.id].shouldUpdate = true;
 
       let { position, velocity } = message;
 

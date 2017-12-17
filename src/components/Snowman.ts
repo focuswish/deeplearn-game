@@ -4,7 +4,30 @@ import {
   Wood
 } from './objects'
 
-export default function Avatar(id) {
+function addPlayerName(font) {
+  let size = 4;
+
+  let textGeometry = new THREE.TextGeometry('Hello World', {
+    font: font,
+    size: size,
+		height: size / 16,
+		curveSegments: 12,
+  })
+
+  let textMesh = new THREE.Mesh(
+    textGeometry,
+    new THREE.MeshBasicMaterial({opacity: 0.90, transparent: true, color: 0xff0000})
+  )
+  
+  textMesh.rotation.set(Math.PI / 2, 0, 0)
+  textMesh.geometry.scale(0.05, 0.05, 0.05)
+  textMesh.geometry.center()
+  textMesh.geometry.translate(0, 1.25, 0)
+  console.log(textMesh)
+  return textMesh
+}
+
+export default function Avatar(id, font) {
   let material = new THREE.MeshLambertMaterial({ 
     color: 0xfffafa,
     flatShading: true,
@@ -12,8 +35,8 @@ export default function Avatar(id) {
   });
 
   let bottom = 0.60;
-  let middle = 0.40;
-  let top = 0.25;
+  let middle = 0.45;
+  let top = 0.35;
   
   let topSnowmanMesh = new THREE.Mesh(
     new THREE.DodecahedronGeometry(top/2, 1), 
@@ -51,16 +74,17 @@ export default function Avatar(id) {
   )
   
   snowmanHalo.name = 'snowman/perimeter'
-  //snowmanHalo.geometry.translate(0, 0, -0.5)
   middleSnowman.add(snowmanHalo)
 
   let twig1 = Wood(0.1, 2, 0.1)
   twig1.scale.set(0.4, 0.4, 0.4)
-  twig1.geometry.translate(0, 0, 1)
+  twig1.geometry.translate(0, 0, 1.25)
   twig1.rotation.set(0, 0, Math.PI / 2)
   
-  middleSnowman.add(twig1)
+  let text = addPlayerName(font)
 
+  middleSnowman.add(twig1)
+  middleSnowman.add(text)
   let avatar = new THREE.Group()
 
   avatar.name = id
@@ -69,8 +93,9 @@ export default function Avatar(id) {
   avatar.add(bottomSnowman)
   avatar.add(middleSnowman)
   avatar.add(topSnowman)
+
   avatar.castShadow = true;
-  avatar.scale.set(0.8, 0.8, 0.8)
+  avatar.scale.set(0.8, 0.8, 0.7)
 
   return avatar;
 }

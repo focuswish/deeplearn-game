@@ -75951,7 +75951,7 @@ const lodash_1 = require("lodash");
 const CANNON = require("cannon");
 const Physics_1 = require("./Physics");
 const Terrain_1 = require("./components/Terrain");
-const Avatar_1 = require("./components/Avatar");
+const Snowman_1 = require("./components/Snowman");
 const PointerLockControls_1 = require("./util/PointerLockControls");
 const uuid = require("uuid/v4");
 function segment(matrix, vertices) {
@@ -75991,8 +75991,8 @@ function World() {
         ctx.renderer.setPixelRatio(window.devicePixelRatio);
         ctx.renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(ctx.renderer.domElement);
-        ctx.zoom = 1;
-        ctx.tilt = -3;
+        ctx.zoom = 2;
+        ctx.tilt = -4;
         ctx.camera.position.x = 0;
         ctx.camera.position.y = ctx.tilt;
         ctx.camera.position.z = ctx.zoom;
@@ -76030,10 +76030,8 @@ function World() {
         function createMap() {
             return __awaiter(this, void 0, void 0, function* () {
                 ctx.terrain.geometry = new THREE.Geometry();
-                //let altitude = fractal.generateTerrain(100, 100, 0.4)
                 let heightmap = yield fetch('/heightmap')
                     .then(resp => resp.json());
-                console.log(heightmap);
                 let terrain = Terrain_1.default({
                     position: [0, 0, 0],
                     color: 0x7cfc00,
@@ -76067,8 +76065,16 @@ function World() {
         ctx.scene.fog = new THREE.FogExp2(0x000000, 0.0025 * 50);
         yield createMap();
         light();
+        const loadFont = () => __awaiter(this, void 0, void 0, function* () {
+            let loader = new THREE.FontLoader();
+            return new Promise((resolve, reject) => {
+                loader.load('/fonts/helvetiker.json', font => resolve(font));
+            });
+        });
+        let font = yield loadFont();
+        console.log(font);
         let avatarId = uuid();
-        let avatar = Avatar_1.default(avatarId);
+        let avatar = Snowman_1.default(avatarId, font);
         ctx.data[avatar.name] = {};
         ctx.data[avatar.name].mesh = avatar;
         ctx.data[avatar.name].didSpawn = false;
@@ -76093,33 +76099,49 @@ function World() {
         let timeStep = 1 / 60;
         let fixedTimeStep = 0.5; // seconds
         let maxSubSteps = 3;
+        function lerp(v1, v2, t) {
+            let target = new THREE.Vector3(v1.x + (v2.x - v1.x) * t, v1.y + (v2.y - v1.y) * t, v1.z + (v2.z - v1.z) * t);
+            return target;
+        }
         const time = () => new Date().getTime() / 1000;
         let start = time();
         let lastUpdated = time();
         function updatePhysics() {
             // Step the physics world
             var timeSinceLastCall = time() - start;
-            //ctx.world.step(timeStep)
             ctx.world.step(timeStep, timeSinceLastCall, maxSubSteps);
             base.sync('snowballs');
             base.sync('boxes');
-            //ctx.avatar.position.copy(ctx.playerSphereBody.position)
-            //ctx.avatar.children[0].quaternion.copy(ctx.playerSphereBody.quaternion)
-            if (Object.keys(ctx.data).length > 0) {
-                Object.keys(ctx.data).forEach(key => {
+            base.sync('icelances');
+            let players = Object.keys(ctx.data);
+            if (players.length > 0) {
+                players.forEach(key => {
                     let player = ctx.data[key];
-                    //let nextPosition = player.body.position;
-                    //let currentMeshPosition = new CANNON.Vec3().copy(player.mesh.position)
-                    //let nextMeshPosition = new CANNON.Vec3()
-                    //if(player.shouldUpdate) {
-                    //  lastUpdated = time() 
-                    //  player.shouldUpdate = false;
-                    //}
-                    //let diff = time() - lastUpdated;
-                    //if(diff > 1) diff = 1;
-                    //currentMeshPosition.lerp(nextPosition, diff, player.mesh.position)
+                    let vec = new CANNON.Vec3().copy(player.mesh.position);
                     player.mesh.position.copy(player.body.position);
                     player.mesh.children[0].quaternion.copy(player.body.quaternion);
+                    /*if(player.id === avatarId) {
+                      
+                      player.mesh.position.copy(player.body.position)
+                      player.mesh.children[0].quaternion.copy(player.body.quaternion)
+                    } else {
+                      if(player.shouldUpdate) {
+                        ctx.data[key].shouldUpdate = false;
+                        lastUpdated = time()
+                      }
+            
+                      let t = time() - lastUpdated;
+                      console.log(t)
+                      player.mesh.position.copy(
+                        lerp(
+                          player.mesh.position,
+                          player.body.position,
+                          t
+                        )
+                      )
+            
+                      player.mesh.children[0].quaternion.copy(player.body.quaternion)
+                    }*/
                 });
             }
             ctx.controls.update(timeSinceLastCall);
@@ -76173,10 +76195,7 @@ function World() {
             ctx.ws.onmessage = function (event) {
                 let message = JSON.parse(event.data);
                 if (message.type === 'snowball') {
-                    let snowball = cannonContext.createSnowball(message.id);
-                    snowball.body.velocity.set(message.velocity.x, message.velocity.y, message.velocity.z);
-                    snowball.body.position.set(message.position.x, message.position.y, message.position.z);
-                    snowball.mesh.position.set(message.position.x, message.position.y, message.position.z);
+                    let snowball = cannonContext.createIceLance(message.id, new THREE.Vector3(message.position.x, message.position.y, message.position.z), new THREE.Vector3(message.velocity.x, message.velocity.y, message.velocity.z));
                     return;
                 }
                 if (message.type !== 'player')
@@ -76189,23 +76208,15 @@ function World() {
                     return;
                 if (!cached.didSpawn) {
                     ctx.data[message.id].didSpawn = true;
-                    let snowman = Avatar_1.default(message.id);
+                    let snowman = Snowman_1.default(message.id, font);
                     ctx.scene.add(snowman);
                     ctx.data[message.id].mesh = snowman;
-                    let playerSphereShape = new CANNON.Sphere(0.3);
-                    let playerSphereBody = new CANNON.Body({
-                        mass: 1,
-                        material: cannonContext.physicsMaterial
-                    });
-                    playerSphereBody.addShape(playerSphereShape);
-                    playerSphereBody.linearDamping = 0.9;
-                    playerSphereBody.addEventListener('collide', function (evt) {
-                        console.log('evt', evt);
-                    });
+                    let playerSphereBody = cannonContext.createPlayerSphere();
                     cannonContext.world.addBody(playerSphereBody);
                     ctx.data[message.id].body = playerSphereBody;
                 }
                 ctx.data[message.id].latency = time() - cached.timestamp;
+                ctx.data[message.id].shouldUpdate = true;
                 let { position, velocity } = message;
                 let nextPosition = new CANNON.Vec3(position.x, position.y, position.z);
                 let nextVelocity = new CANNON.Vec3(velocity.x, velocity.y, velocity.z);
@@ -76222,7 +76233,7 @@ function World() {
 window.World = World;
 let world = World();
 
-},{"./Physics":9,"./components/Avatar":10,"./components/Terrain":11,"./util/PointerLockControls":15,"cannon":1,"lodash":2,"three":3,"uuid/v4":6}],8:[function(require,module,exports){
+},{"./Physics":9,"./components/Snowman":10,"./components/Terrain":11,"./util/PointerLockControls":15,"cannon":1,"lodash":2,"three":3,"uuid/v4":6}],8:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -76410,7 +76421,6 @@ const CANNON = require("cannon");
 const THREE = require("three");
 const Base_1 = require("../Base");
 const objects_1 = require("../components/objects");
-const lodash_1 = require("lodash");
 const Tree_1 = require("../components/Tree");
 const uuid = require("uuid/v4");
 function spawnTrees(ctx, cannonContext) {
@@ -76484,16 +76494,25 @@ function createDefaultPhysicsWorld() {
     world.broadphase = new CANNON.NaiveBroadphase();
     return world;
 }
-function createPlayerSphere(cannonContext, { radius }) {
-    // Create a sphere
-    let playerSphereShape = new CANNON.Sphere(radius);
-    let playerSphereBody = new CANNON.Body({ mass: 1, material: cannonContext.physicsMaterial });
-    playerSphereBody.addShape(playerSphereShape);
-    playerSphereBody.position.set(0, 0, 5);
-    playerSphereBody.linearDamping = 0.9;
-    cannonContext.world.addBody(playerSphereBody);
-    cannonContext.playerSphereBody = playerSphereBody;
-    return playerSphereBody;
+function createPlayerSphere(ctx, cannonContext) {
+    let bottomSnowman = ctx.scene.getObjectByName('snowman/bottom', true);
+    bottomSnowman.children[0].geometry.computeBoundingSphere();
+    let { boundingSphere } = bottomSnowman.children[0].geometry;
+    return function () {
+        let playerSphereShape = new CANNON.Sphere(boundingSphere.radius);
+        let playerSphereBody = new CANNON.Body({
+            mass: 1,
+            material: cannonContext.physicsMaterial
+        });
+        playerSphereBody.addShape(playerSphereShape);
+        playerSphereBody.position.set(0, 0, 5);
+        playerSphereBody.linearDamping = 0.9;
+        playerSphereBody.addEventListener('collide', function (evt) {
+            console.log('evt', evt);
+        });
+        cannonContext.world.addBody(playerSphereBody);
+        return playerSphereBody;
+    };
 }
 function spawnBoxes(ctx, cannonContext) {
     let { base } = cannonContext;
@@ -76516,7 +76535,7 @@ function spawnBoxes(ctx, cannonContext) {
 }
 function createSnowball(ctx, cannonContext) {
     let snowball = {};
-    return function (id) {
+    return function (id, position, velocity) {
         snowball.shape = new CANNON.Sphere(0.15);
         snowball.geometry = new THREE.SphereGeometry(snowball.shape.radius, 32, 32);
         snowball.body = new CANNON.Body({ mass: 2 });
@@ -76528,7 +76547,32 @@ function createSnowball(ctx, cannonContext) {
         snowball.mesh.receiveShadow = true;
         snowball.mesh.name = id;
         cannonContext.base.register(snowball.mesh, snowball.body, 'snowballs');
+        snowball.body.position.copy(position);
+        snowball.body.velocity.copy(velocity);
+        snowball.mesh.position.copy(position);
         return snowball;
+    };
+}
+function createIceLance(ctx, cannonContext) {
+    return function (id, position, velocity) {
+        let shape = new CANNON.Sphere(0.1);
+        let geometry = new THREE.ConeGeometry(shape.radius, 8 * shape.radius, 32);
+        let body = new CANNON.Body({ mass: 1 });
+        setTimeout(() => body.sleep(), 5000);
+        body.addShape(shape);
+        body.fixedRotation = true;
+        body.updateMassProperties();
+        let material = new THREE.MeshLambertMaterial({ color: 0xa5f2f3 });
+        let mesh = new THREE.Mesh(geometry, material);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.name = id;
+        mesh.rotation.set(...velocity.toArray());
+        cannonContext.base.register(mesh, body, 'icelances');
+        body.position.copy(position);
+        body.velocity.copy(velocity);
+        mesh.position.copy(position);
+        return { mesh, body };
     };
 }
 function getShootDirection(event, ctx) {
@@ -76540,7 +76584,9 @@ function getShootDirection(event, ctx) {
     let offset = worldDirection.clone().normalize().multiplyScalar(3);
     let raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, ctx.camera);
-    let intersects = raycaster.intersectObjects(ctx.scene.children);
+    let intersects = raycaster.intersectObjects(
+    //Object.keys(ctx.data).map(key => ctx.data[key].mesh)
+    ctx.scene.children);
     let distance = intersects[0] && intersects[0].distance || 10;
     let adjustedDirection = raycaster.ray.direction
         .clone()
@@ -76549,11 +76595,8 @@ function getShootDirection(event, ctx) {
     let { x, y, z } = adjustedDirection;
     if (intersects && intersects.length > 0) {
         let intersect = intersects[0];
-        console.log(intersect);
-        if (lodash_1.get(intersect, ['object', 'userData', 'type']) === 'player') {
-            console.log(intersect);
-            intersect.object.material.color.set(0xff0000);
-        }
+        console.log(intersects);
+        //if(intersect) intersect.object.material.color.set(0xff0000)  
     }
     z = z / Math.pow(10, 2);
     return { x, y, z };
@@ -76563,27 +76606,26 @@ function Physics(ctx) {
     let world = createDefaultPhysicsWorld();
     cannonContext.world = world;
     // Create a sphere
-    let bottomSnowman = ctx.scene.getObjectByName('snowman/bottom', true);
-    bottomSnowman.children[0].geometry.computeBoundingSphere();
-    let { boundingSphere } = bottomSnowman.children[0].geometry;
-    let playerSphereBody = createPlayerSphere(cannonContext, boundingSphere);
+    let playerSphereBody = createPlayerSphere(ctx, cannonContext)();
+    cannonContext.playerSphereBody = playerSphereBody;
     let base = Base_1.default(ctx, cannonContext);
     cannonContext.base = base;
     // Create a slippery material (friction coefficient = 0.0)
     let physicsMaterial = createPhysicsContactMaterial(world);
     cannonContext.physicsMaterial = physicsMaterial;
     let heightfield = addHeightfield(ctx, cannonContext);
-    let shootVelo = 10;
+    let shootVelo = 5;
     cannonContext.spawnBoxes = spawnBoxes(ctx, cannonContext);
     cannonContext.spawnTrees = spawnTrees(ctx, cannonContext);
     cannonContext.createSnowball = createSnowball(ctx, cannonContext);
+    cannonContext.createPlayerSphere = createPlayerSphere(ctx, cannonContext);
+    cannonContext.createIceLance = createIceLance(ctx, cannonContext);
     window.addEventListener('click', function (e) {
         let { x, y, z } = playerSphereBody.position;
-        let snowball = createSnowball(ctx, cannonContext)(uuid());
         let shootDirection = getShootDirection(event, ctx);
-        snowball.body.velocity.set(shootDirection.x * shootVelo, shootDirection.y * shootVelo, shootDirection.z);
-        snowball.body.position.set(x, y, z);
-        snowball.mesh.position.set(x, y, z);
+        let snowballVelocity = new THREE.Vector3(shootDirection.x * shootVelo, shootDirection.y * shootVelo, shootDirection.z);
+        let snowballId = uuid();
+        let snowball = cannonContext.createIceLance(snowballId, playerSphereBody.position, snowballVelocity);
         ctx.ws.send(JSON.stringify({
             position: { x, y, z },
             velocity: snowball.body.velocity,
@@ -76596,20 +76638,36 @@ function Physics(ctx) {
 }
 exports.Physics = Physics;
 
-},{"../Base":8,"../components/Tree":12,"../components/objects":13,"cannon":1,"lodash":2,"three":3,"uuid/v4":6}],10:[function(require,module,exports){
+},{"../Base":8,"../components/Tree":12,"../components/objects":13,"cannon":1,"three":3,"uuid/v4":6}],10:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
 const objects_1 = require("./objects");
-function Avatar(id) {
+function addPlayerName(font) {
+    let size = 4;
+    let textGeometry = new THREE.TextGeometry('Hello World', {
+        font: font,
+        size: size,
+        height: size / 16,
+        curveSegments: 12,
+    });
+    let textMesh = new THREE.Mesh(textGeometry, new THREE.MeshBasicMaterial({ opacity: 0.90, transparent: true, color: 0xff0000 }));
+    textMesh.rotation.set(Math.PI / 2, 0, 0);
+    textMesh.geometry.scale(0.05, 0.05, 0.05);
+    textMesh.geometry.center();
+    textMesh.geometry.translate(0, 1.25, 0);
+    console.log(textMesh);
+    return textMesh;
+}
+function Avatar(id, font) {
     let material = new THREE.MeshLambertMaterial({
         color: 0xfffafa,
         flatShading: true,
         vertexColors: THREE.VertexColors
     });
     let bottom = 0.60;
-    let middle = 0.40;
-    let top = 0.25;
+    let middle = 0.45;
+    let top = 0.35;
     let topSnowmanMesh = new THREE.Mesh(new THREE.DodecahedronGeometry(top / 2, 1), material);
     let middleSnowmanMesh = new THREE.Mesh(new THREE.DodecahedronGeometry(middle / 2, 1), material);
     let bottomSnowmanMesh = new THREE.Mesh(new THREE.DodecahedronGeometry(bottom / 2, 1), material);
@@ -76626,13 +76684,14 @@ function Avatar(id) {
     bottomSnowman.add(bottomSnowmanMesh);
     let snowmanHalo = new THREE.Mesh(new THREE.CircleGeometry(10, 32), new THREE.MeshBasicMaterial({ opacity: 0.4, transparent: true }));
     snowmanHalo.name = 'snowman/perimeter';
-    //snowmanHalo.geometry.translate(0, 0, -0.5)
     middleSnowman.add(snowmanHalo);
     let twig1 = objects_1.Wood(0.1, 2, 0.1);
     twig1.scale.set(0.4, 0.4, 0.4);
-    twig1.geometry.translate(0, 0, 1);
+    twig1.geometry.translate(0, 0, 1.25);
     twig1.rotation.set(0, 0, Math.PI / 2);
+    let text = addPlayerName(font);
     middleSnowman.add(twig1);
+    middleSnowman.add(text);
     let avatar = new THREE.Group();
     avatar.name = id;
     avatar.userData.type = 'player';
@@ -76640,7 +76699,7 @@ function Avatar(id) {
     avatar.add(middleSnowman);
     avatar.add(topSnowman);
     avatar.castShadow = true;
-    avatar.scale.set(0.8, 0.8, 0.8);
+    avatar.scale.set(0.8, 0.8, 0.7);
     return avatar;
 }
 exports.default = Avatar;
@@ -77033,10 +77092,10 @@ function PointerLockControls(camera, cannonBody, avatar) {
         inputVelocity.set(0, 0, 0);
         let direction = camera.getWorldDirection();
         if (moveForward) {
-            inputVelocity = direction.multiplyScalar(2);
+            inputVelocity = direction.multiplyScalar(0.5);
         }
         if (moveBackward) {
-            inputVelocity = direction.negate().multiplyScalar(2);
+            inputVelocity = direction.negate().multiplyScalar(0.5);
         }
         if (moveLeft) {
             pitchObject.rotation.z += 0.2;

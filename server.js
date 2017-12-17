@@ -64,8 +64,12 @@ app.get('/heightmap', (req, res) => {
     createHeightmap()
   } 
 
-
   res.json(heightmap)
+})
+
+app.get('/fonts/:font', (req, res) => {
+  let font = require(`./src/assets/${req.params.font}`)
+  res.json(font)
 })
 
 app.post('/save', (req, res) => {
