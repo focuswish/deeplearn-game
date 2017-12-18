@@ -16,6 +16,7 @@ import Snowman from './components/Snowman'
 import Tree from './components/Tree';
 import PointerLockControls from './util/PointerLockControls'
 import * as uuid from 'uuid/v4'
+import * as widgets from './Widget'
 
 function segment(matrix, vertices) {  
   let n = Math.sqrt(vertices.length)
@@ -168,8 +169,7 @@ async function World() {
 
   light()
 
-  
-  
+
   const loadFont = async () => {
     let loader = new THREE.FontLoader();
     return new Promise((resolve, reject) => {
@@ -178,7 +178,6 @@ async function World() {
   }
 
   let font = await loadFont()
-  console.log(font)
   let avatarId = uuid()
   let avatar = Snowman(avatarId, font)
 
@@ -193,7 +192,8 @@ async function World() {
   ctx.avatar = ctx.data[avatar.name].mesh;
 
   ctx.scene.updateMatrixWorld()
-
+  ctx.select = widgets.heroSelection()
+  
   let cannonContext = Physics(ctx)
   
   let { 
@@ -267,14 +267,13 @@ async function World() {
             lastUpdated = time()
           }
 
-          let t = (time() - lastUpdated)
-          player.mesh.position.copy(
-            lerp(
-              player.mesh.position, 
-              {...player.body.velocity, z: player.body.position.z }, 
-              t
-            )
-          )
+          let t = (time() - lastUpdated)          
+          //player.mesh.position.addScaledVector(
+          //  player.body.velocity, t
+          //)
+          player.mesh.position.copy(player.body.position)
+          player.mesh.children[0].quaternion.copy(player.body.quaternion)
+        
         }
       })
     }
@@ -321,9 +320,11 @@ async function World() {
     animate()
 
     base = base.apply(ctx)
-    console.log('base', base)
     base.tick()
 
+    widgets.healthBar()
+    
+    console.log(ctx)
     window.addEventListener('keydown', function(e) {
       let position = ctx.playerSphereBody.position.toArray().map(p => Math.round(p))
 
@@ -401,14 +402,12 @@ async function World() {
       cached.body.position.copy(nextPosition)
       cached.body.velocity.copy(nextVelocity)
 
-      console.log(ctx.data)
     };
   
     return ctx;
   }
   
   init()
-
   return ctx;
 }
 

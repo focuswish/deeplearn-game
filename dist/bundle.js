@@ -75954,6 +75954,7 @@ const Terrain_1 = require("./components/Terrain");
 const Snowman_1 = require("./components/Snowman");
 const PointerLockControls_1 = require("./util/PointerLockControls");
 const uuid = require("uuid/v4");
+const widgets = require("./Widget");
 function segment(matrix, vertices) {
     let n = Math.sqrt(vertices.length);
     let offset = (n - 10) / 10;
@@ -76072,7 +76073,6 @@ function World() {
             });
         });
         let font = yield loadFont();
-        console.log(font);
         let avatarId = uuid();
         let avatar = Snowman_1.default(avatarId, font);
         ctx.data[avatar.name] = {};
@@ -76083,6 +76083,7 @@ function World() {
         ctx.scene.add(ctx.data[avatar.name].mesh);
         ctx.avatar = ctx.data[avatar.name].mesh;
         ctx.scene.updateMatrixWorld();
+        ctx.select = widgets.heroSelection();
         let cannonContext = Physics_1.Physics(ctx);
         let { world, base, playerSphereBody, } = cannonContext;
         ctx.data[avatar.name].body = playerSphereBody;
@@ -76131,7 +76132,11 @@ function World() {
                             lastUpdated = time();
                         }
                         let t = (time() - lastUpdated);
-                        player.mesh.position.copy(lerp(player.mesh.position, Object.assign({}, player.body.velocity, { z: player.body.position.z }), t));
+                        //player.mesh.position.addScaledVector(
+                        //  player.body.velocity, t
+                        //)
+                        player.mesh.position.copy(player.body.position);
+                        player.mesh.children[0].quaternion.copy(player.body.quaternion);
                     }
                 });
             }
@@ -76161,8 +76166,9 @@ function World() {
             ctx.scene.add(ctx.controls.getObject());
             animate();
             base = base.apply(ctx);
-            console.log('base', base);
             base.tick();
+            widgets.healthBar();
+            console.log(ctx);
             window.addEventListener('keydown', function (e) {
                 let position = ctx.playerSphereBody.position.toArray().map(p => Math.round(p));
                 document.getElementById('info').innerHTML = `<span>${position.join(', ')}<span>`;
@@ -76214,7 +76220,6 @@ function World() {
                 //nextPosition = nextPosition.lerp(nextPosition.clone().add(nextVelocity), 0.2)
                 cached.body.position.copy(nextPosition);
                 cached.body.velocity.copy(nextVelocity);
-                console.log(ctx.data);
             };
             return ctx;
         }
@@ -76225,7 +76230,7 @@ function World() {
 window.World = World;
 let world = World();
 
-},{"./Physics":9,"./components/Snowman":10,"./components/Terrain":11,"./util/PointerLockControls":15,"cannon":1,"lodash":2,"three":3,"uuid/v4":6}],8:[function(require,module,exports){
+},{"./Physics":9,"./Widget":10,"./components/Snowman":11,"./components/Terrain":12,"./util/PointerLockControls":16,"cannon":1,"lodash":2,"three":3,"uuid/v4":6}],8:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -76257,7 +76262,7 @@ function Base(ctx, cannonContext) {
         return distance;
     }
     base.getRandomPointOnPerimeter = () => {
-        let avatarPerimeter = ctx.scene.getObjectByName('snowman/perimeter', true);
+        let avatarPerimeter = ctx.scene.getObjectByName('snowman/halo', true);
         if (!avatarPerimeter) {
             return new THREE.Vector3(0, 0, 1);
         }
@@ -76268,7 +76273,7 @@ function Base(ctx, cannonContext) {
             .add(new THREE.Vector3(0, 0, -0.2));
         return vector;
     };
-    base.register = (mesh, body, name = null, respawn = null) => {
+    base.register = (mesh, body, name = null, respawn = null, copyQuaternion = true) => {
         let { store } = base;
         // add to THREE
         ctx.scene.add(mesh);
@@ -76278,7 +76283,7 @@ function Base(ctx, cannonContext) {
         if (!name)
             return store;
         let cache = initCache(name, respawn);
-        cache.entities.push({ body, mesh, name });
+        cache.entities.push({ body, mesh, name, copyQuaternion });
         return store;
     };
     base.removeMesh = (mesh) => {
@@ -76303,7 +76308,7 @@ function Base(ctx, cannonContext) {
         return;
     };
     base.remove = (entity) => {
-        //let name = entity.name;
+        console.log('Removing:', entity);
         let cache = base.store[entity.name];
         let { mesh, body } = entity;
         base.removeMesh(mesh);
@@ -76334,7 +76339,8 @@ function Base(ctx, cannonContext) {
         entities.forEach((entity, i) => {
             if (entity.body) {
                 entity.mesh.position.copy(entity.body.position);
-                entity.mesh.quaternion.copy(entity.body.quaternion);
+                if (entity.copyQuaternion)
+                    entity.mesh.quaternion.copy(entity.body.quaternion);
             }
         });
         return base;
@@ -76343,6 +76349,18 @@ function Base(ctx, cannonContext) {
         if (!base.store[name])
             return [];
         return base.store[name];
+    };
+    base.getEntityById = (id) => {
+        let needle;
+        Object.keys(base.store).forEach(key => {
+            let entities = base.store[key].entities;
+            Object.keys(entities).forEach(key => {
+                if (entities[key].mesh.name === id) {
+                    needle = entities[key];
+                }
+            });
+        });
+        return needle;
     };
     base.cullDistantObjects = (entities) => {
         let horizon = entities.map((entity, i) => (Object.assign({ distance: getDistanceFromAvatar(entity.mesh.position) }, entity))).sort((a, b) => a.distance - b.distance);
@@ -76375,12 +76393,12 @@ function Base(ctx, cannonContext) {
                     }).filter(visible => visible);
                     let visibleCount = intersects.length;
                     store[key].visibleCount = visibleCount;
-                    if (cache.entities.length > 10) {
+                    if (cache.entities.length > 100) {
                         base.cullDistantObjects(cache.entities);
                     }
                     if (visibleCount < 1) {
                         if (cache.respawn) {
-                            if (cache.entities.length > 40)
+                            if (cache.entities.length > 100)
                                 base.removeMeshesByName(key);
                             cache.respawn();
                         }
@@ -76413,6 +76431,7 @@ const CANNON = require("cannon");
 const THREE = require("three");
 const Base_1 = require("../Base");
 const objects_1 = require("../components/objects");
+const lodash_1 = require("lodash");
 const Tree_1 = require("../components/Tree");
 const uuid = require("uuid/v4");
 function spawnTrees(ctx, cannonContext) {
@@ -76461,9 +76480,10 @@ function addHeightfield(ctx, cannonContext) {
 exports.addHeightfield = addHeightfield;
 function createPhysicsContactMaterial(world) {
     let physicsMaterial = new CANNON.Material('slipperyMaterial');
-    let physicsContactMaterial = new CANNON.ContactMaterial(physicsMaterial, physicsMaterial, 0.0, // friction coefficient
-    0.3 // restitution
-    );
+    let physicsContactMaterial = new CANNON.ContactMaterial(physicsMaterial, physicsMaterial, {
+        friction: 1.0,
+        restitution: 0.3,
+    });
     world.addContactMaterial(physicsContactMaterial);
     return physicsContactMaterial;
 }
@@ -76498,10 +76518,10 @@ function createPlayerSphere(ctx, cannonContext) {
         });
         playerSphereBody.addShape(playerSphereShape);
         playerSphereBody.position.set(0, 0, 5);
-        playerSphereBody.linearDamping = 0.9;
-        playerSphereBody.addEventListener('collide', function (evt) {
-            console.log('evt', evt);
-        });
+        playerSphereBody.linearDamping = 0.90;
+        //playerSphereBody.addEventListener('collide', function(evt) {
+        //});
+        playerSphereBody.fixedRotation = true;
         cannonContext.world.addBody(playerSphereBody);
         return playerSphereBody;
     };
@@ -76546,25 +76566,32 @@ function createSnowball(ctx, cannonContext) {
     };
 }
 function createIceLance(ctx, cannonContext) {
-    return function (id, position, velocity) {
+    return function (id, position, velocity, target = null) {
         let shape = new CANNON.Sphere(0.1);
         let geometry = new THREE.ConeGeometry(shape.radius, 8 * shape.radius, 32);
         let body = new CANNON.Body({ mass: 1 });
-        setTimeout(() => body.sleep(), 5000);
         body.addShape(shape);
         body.fixedRotation = true;
         body.updateMassProperties();
         let material = new THREE.MeshLambertMaterial({ color: 0xa5f2f3 });
         let mesh = new THREE.Mesh(geometry, material);
+        mesh.rotation.set(0, 0, 0);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         mesh.name = id;
-        mesh.rotation.set(...velocity.toArray());
-        //base.quaternion.setFromVectors()
-        cannonContext.base.register(mesh, body, 'icelances');
+        cannonContext.base.register(mesh, body, 'icelances', null, false);
         body.position.copy(position);
         body.velocity.copy(velocity);
         mesh.position.copy(position);
+        let worldDirection = ctx.camera.getWorldDirection().clone();
+        if (target)
+            mesh.lookAt(target);
+        body.addEventListener('collide', function (evt) {
+            let entity = cannonContext.base.getEntityById(id);
+            if (entity) {
+                setTimeout(() => { cannonContext.base.remove(entity); }, 1000);
+            }
+        });
         return { mesh, body };
     };
 }
@@ -76577,22 +76604,42 @@ function getShootDirection(event, ctx) {
     let offset = worldDirection.clone().normalize().multiplyScalar(3);
     let raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, ctx.camera);
-    let intersects = raycaster.intersectObjects(
-    //Object.keys(ctx.data).map(key => ctx.data[key].mesh)
-    ctx.scene.children);
+    console.log('children', ctx.scene.children.filter(child => child.name !== ''));
+    let intersects = raycaster.intersectObjects(ctx.scene.children.filter(child => child.name !== '' &&
+        child.name.indexOf('halo') < 0), true);
+    console.log('intersects', intersects);
     let distance = intersects[0] && intersects[0].distance || 10;
     let adjustedDirection = raycaster.ray.direction
         .clone()
         .multiplyScalar(distance)
         .sub(offset);
     let { x, y, z } = adjustedDirection;
-    if (intersects && intersects.length > 0) {
+    if (!lodash_1.isEmpty(intersects)) {
         let intersect = intersects[0];
-        console.log(intersects);
-        //if(intersect) intersect.object.material.color.set(0xff0000)  
+        z = intersect.object.position.z;
+        let obj = intersect.object.parent ?
+            intersect.object.parent : intersect.object;
+        ctx.select(obj.clone());
+        let { userData } = ctx.avatar;
+        if (userData.selected) {
+            let selected = ctx.scene.getObjectById(userData.selected, true);
+            console.log(selected);
+            if (selected) {
+                //selected.remove(selected.children.find(child => child.name === 'halo'))
+            }
+        }
+        userData.selected = obj.id;
+        let halo = new THREE.Mesh(new THREE.CircleGeometry(0.5, 32), new THREE.MeshBasicMaterial({ opacity: 0.5, transparent: true, color: 0x0000ff }));
+        halo.name = 'halo';
+        halo.up.set(0, 0, 1);
+        halo.rotateOnAxis(new THREE.Vector3(0, 0, 1), Math.PI / 2);
+        obj.add(halo);
+        console.log('obj - halo', obj);
     }
-    z = z / Math.pow(10, 2);
-    return { x, y, z };
+    return {
+        direction: adjustedDirection,
+        target: lodash_1.get(intersects, [0, 'point'])
+    };
 }
 function Physics(ctx) {
     let cannonContext = {};
@@ -76607,7 +76654,7 @@ function Physics(ctx) {
     let physicsMaterial = createPhysicsContactMaterial(world);
     cannonContext.physicsMaterial = physicsMaterial;
     let heightfield = addHeightfield(ctx, cannonContext);
-    let shootVelo = 5;
+    let shootVelo = 10;
     cannonContext.spawnBoxes = spawnBoxes(ctx, cannonContext);
     cannonContext.spawnTrees = spawnTrees(ctx, cannonContext);
     cannonContext.createSnowball = createSnowball(ctx, cannonContext);
@@ -76616,9 +76663,11 @@ function Physics(ctx) {
     window.addEventListener('click', function (e) {
         let { x, y, z } = playerSphereBody.position;
         let shootDirection = getShootDirection(event, ctx);
-        let snowballVelocity = new THREE.Vector3(shootDirection.x * shootVelo, shootDirection.y * shootVelo, shootDirection.z);
+        let snowballVelocity = new THREE.Vector3(shootDirection.direction.x * shootVelo, shootDirection.direction.y * shootVelo, shootDirection.direction.z);
         let snowballId = uuid();
-        let snowball = cannonContext.createIceLance(snowballId, playerSphereBody.position, snowballVelocity);
+        let snowball = cannonContext.createIceLance(snowballId, new THREE.Vector3()
+            .copy(playerSphereBody.position)
+            .setComponent(2, playerSphereBody.position.z + 1), snowballVelocity, shootDirection.target);
         ctx.ws.send(JSON.stringify({
             position: { x, y, z },
             velocity: snowball.body.velocity,
@@ -76631,7 +76680,138 @@ function Physics(ctx) {
 }
 exports.Physics = Physics;
 
-},{"../Base":8,"../components/Tree":12,"../components/objects":13,"cannon":1,"three":3,"uuid/v4":6}],10:[function(require,module,exports){
+},{"../Base":8,"../components/Tree":13,"../components/objects":14,"cannon":1,"lodash":2,"three":3,"uuid/v4":6}],10:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const THREE = require("three");
+function Widget() {
+    let widget = {};
+    const set = (element, props) => {
+        for (let key in props) {
+            if (typeof props[key] === 'object') {
+                set(element[key], props[key]);
+            }
+            else {
+                element[key] = props[key];
+            }
+        }
+        return widget;
+    };
+    widget.update = (widget, data) => {
+        set(widget, data);
+    };
+    widget.handleUpdate = (e) => {
+        let { detail } = e;
+        let dataset = Object.assign({}, detail);
+        let style = {};
+        if (dataset.health) {
+            style.width = `${dataset.health}%`;
+        }
+        set(e.srcElement, { dataset, style });
+    };
+    widget.create = (props = {}, parent = null) => {
+        let mergedProps = Object.assign({}, props);
+        let element = document.createElement('div');
+        set(element, mergedProps);
+        let container = widget.element ? widget.element : document.querySelector('body');
+        container.appendChild(element);
+        if (!widget.element) {
+            widget.element = element;
+        }
+        element.addEventListener('update', widget.handleUpdate);
+        return widget;
+    };
+    return widget;
+}
+exports.Widget = Widget;
+function SpriteTile(mesh) {
+    let camera = new THREE.PerspectiveCamera(70, 1, 0.01, 10);
+    camera.position.z = 2;
+    camera.position.y = -1;
+    camera.lookAt(0, 0, 0);
+    camera.up.set(0, 0, 1);
+    let scene = new THREE.Scene();
+    let light = new THREE.HemisphereLight(0xfffafa, 0x000000, 0.7);
+    scene.background = new THREE.Color(0xdddddd);
+    //mesh.geometry.computeBoundingSphere();
+    //let radius = mesh.geometry.boundingSphere.radius;
+    //mesh.rotation.x += Math.PI / 8
+    //mesh.rotation.y += Math.PI / 8
+    //mesh.scale.set(radius * 24, radius * 24, radius * 24)
+    mesh.position.set(-0.1, -0.1, 0);
+    //mesh.geometry.normalize()
+    //console.log(mesh)
+    scene.add(light);
+    scene.add(mesh);
+    let renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        preserveDrawingBuffer: true
+    });
+    renderer.setSize(100, 100);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.render(scene, camera);
+    let url = renderer.domElement.toDataURL();
+    console.log(url);
+    return url;
+}
+exports.SpriteTile = SpriteTile;
+function healthBar() {
+    let bar = Widget().create({
+        id: 'healthbar',
+        style: {
+            position: 'absolute',
+            right: '10px',
+            top: '10px',
+            width: '200px',
+            backgroundColor: '#fafafa',
+            boxShadow: '0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.3)'
+        },
+        dataset: {
+            health: 100
+        }
+    }).create({
+        style: {
+            width: '100%',
+            height: '20px',
+            backgroundColor: 'green'
+        }
+    });
+    let detail = {
+        detail: {
+            health: 95
+        }
+    };
+    //let innerDiv = bar.element.children[0]
+    //let evt = new CustomEvent('update', detail)
+    //innerDiv.dispatchEvent(evt);
+}
+exports.healthBar = healthBar;
+function heroSelection() {
+    let selected = Widget().create({
+        id: 'selected-object',
+        style: {
+            position: 'absolute',
+            left: '10px',
+            top: '10px',
+            width: '50px',
+            height: '50px',
+            backgroundColor: '#ddd',
+            boxShadow: '0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.3)',
+            display: 'none'
+        },
+    });
+    return function select(mesh) {
+        console.log('select() - mesh', mesh);
+        let url = SpriteTile(mesh);
+        console.log(url);
+        selected.element.style.backgroundImage = `url(${url})`;
+        selected.element.style.backgroundSize = 'cover';
+        selected.element.style.display = 'block';
+    };
+}
+exports.heroSelection = heroSelection;
+
+},{"three":3}],11:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -76676,7 +76856,7 @@ function Avatar(id, font) {
     bottomSnowman.name = 'snowman/bottom';
     bottomSnowman.add(bottomSnowmanMesh);
     let snowmanHalo = new THREE.Mesh(new THREE.CircleGeometry(10, 32), new THREE.MeshBasicMaterial({ opacity: 0.4, transparent: true }));
-    snowmanHalo.name = 'snowman/perimeter';
+    snowmanHalo.name = 'snowman/halo';
     middleSnowman.add(snowmanHalo);
     let twig1 = objects_1.Wood(0.1, 2, 0.1);
     twig1.scale.set(0.4, 0.4, 0.4);
@@ -76688,6 +76868,7 @@ function Avatar(id, font) {
     let avatar = new THREE.Group();
     avatar.name = id;
     avatar.userData.type = 'player';
+    avatar.userData.health = 100;
     avatar.add(bottomSnowman);
     avatar.add(middleSnowman);
     avatar.add(topSnowman);
@@ -76697,7 +76878,7 @@ function Avatar(id, font) {
 }
 exports.default = Avatar;
 
-},{"./objects":13,"three":3}],11:[function(require,module,exports){
+},{"./objects":14,"three":3}],12:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -76742,7 +76923,7 @@ function Terrain(params = {}) {
 }
 exports.default = Terrain;
 
-},{"../constants":14,"three":3}],12:[function(require,module,exports){
+},{"../constants":15,"three":3}],13:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -76797,6 +76978,7 @@ function Tree() {
         ctx.top.receiveShadow = false;
         ctx.top.position.y = 0.9;
         ctx.top.rotation.y = (Math.random() * (Math.PI));
+        ctx.top.name = 'tree/top';
         return ctx;
     }
     function createTrunk() {
@@ -76805,6 +76987,7 @@ function Tree() {
             flatShading: true
         }));
         ctx.trunk.position.y = 0.25;
+        ctx.trunk.name = 'tree/trunk';
         return ctx;
     }
     function createCannonBody() {
@@ -76838,7 +77021,7 @@ function Tree() {
 }
 exports.default = Tree;
 
-},{"cannon":1,"three":3}],13:[function(require,module,exports){
+},{"cannon":1,"three":3}],14:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -76959,7 +77142,7 @@ function generateCampfire(ctx) {
 }
 exports.generateCampfire = generateCampfire;
 
-},{"../constants":14,"cannon":1,"three":3}],14:[function(require,module,exports){
+},{"../constants":15,"cannon":1,"three":3}],15:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BASE_ASSET_URL = 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/';
@@ -76969,7 +77152,7 @@ exports.assets = {
     sky: `${exports.BASE_ASSET_URL}/galaxy.jpg`
 };
 
-},{}],15:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 "use strict";
 /**
  * @author mrdoob / http://mrdoob.com/
@@ -77020,6 +77203,8 @@ function PointerLockControls(camera, cannonBody, avatar) {
         pitchObject.rotation.x = Math.max(-PI_2, Math.min(PI_2, pitchObject.rotation.x));
     };
     var onKeyDown = function (event) {
+        if (cannonBody.sleepState === 2)
+            cannonBody.wakeUp();
         switch (event.keyCode) {
             case 38: // up
             case 87:// w

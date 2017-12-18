@@ -73,7 +73,7 @@ export default function Avatar(id, font) {
     new THREE.MeshBasicMaterial({opacity: 0.4, transparent: true})
   )
   
-  snowmanHalo.name = 'snowman/perimeter'
+  snowmanHalo.name = 'snowman/halo'
   middleSnowman.add(snowmanHalo)
 
   let twig1 = Wood(0.1, 2, 0.1)
@@ -89,6 +89,7 @@ export default function Avatar(id, font) {
 
   avatar.name = id
   avatar.userData.type = 'player'
+  avatar.userData.health = 100;
   
   avatar.add(bottomSnowman)
   avatar.add(middleSnowman)

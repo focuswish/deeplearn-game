@@ -47,11 +47,13 @@ wss.broadcast = function broadcast(data) {
 };
 
 wss.on('connection', function connection(ws) {
+  console.log(ws)
   ws.isAlive = true
   ws.on('pong', heartbeat)
   ws.on('message', function incoming(data) {
     // Broadcast to everyone else.
     wss.clients.forEach(function each(client) {
+
       if (client !== ws && client.readyState === WebSocket.OPEN) {
         client.send(data);
       }

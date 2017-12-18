@@ -6,7 +6,8 @@ import {
 } from '../components/objects'
 import { 
   chunk,
-  get
+  get,
+  isEmpty
 } from 'lodash'
 import Tree from '../components/Tree'
 import * as uuid from 'uuid/v4'
@@ -74,10 +75,14 @@ function createPhysicsContactMaterial(world) {
   
   let physicsContactMaterial = new CANNON.ContactMaterial(
     physicsMaterial,
-    physicsMaterial,
-    0.0, // friction coefficient
-    0.3  // restitution
-  );
+    physicsMaterial, {
+      friction: 1.0,
+      restitution: 0.3,
+      //contactEquationStiffness: 1e8,
+      //contactEquationRelaxation: 3,
+      //frictionEquationStiffness: 1e8,
+      //frictionEquationRegularizationTime: 3,
+  });
     
   world.addContactMaterial(physicsContactMaterial);
   
@@ -127,10 +132,11 @@ function createPlayerSphere(ctx, cannonContext) {
     playerSphereBody.addShape(playerSphereShape)
   
     playerSphereBody.position.set(0,0,5);
-    playerSphereBody.linearDamping = 0.9;
-    playerSphereBody.addEventListener('collide', function(evt) {
-      console.log('evt', evt)
-    });
+    playerSphereBody.linearDamping = 0.90;
+    //playerSphereBody.addEventListener('collide', function(evt) {
+    //});
+
+    playerSphereBody.fixedRotation = true;
 
     cannonContext.world.addBody(playerSphereBody)
   
@@ -201,35 +207,44 @@ function createSnowball(ctx, cannonContext) {
 
 function createIceLance(ctx, cannonContext) {
 
-  return function(id, position, velocity) {
+  return function(id, position, velocity, target = null) {
     let shape = new CANNON.Sphere(0.1)
     let geometry = new THREE.ConeGeometry(shape.radius, 8 * shape.radius, 32)
-
-    let body = new CANNON.Body({ mass: 1 });
-    setTimeout(() => body.sleep(), 5000)
-    
+   
+    let body = new CANNON.Body({ mass: 1 });    
   
     body.addShape(shape)
     body.fixedRotation = true;
     body.updateMassProperties()
-
+   
     let material = new THREE.MeshLambertMaterial({ color: 0xa5f2f3 })
     let mesh = new THREE.Mesh( 
       geometry, 
       material 
     )
-
+    
+    mesh.rotation.set(0, 0, 0)    
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.name = id
-    mesh.rotation.set(...velocity.toArray())
-    //base.quaternion.setFromVectors()
-    cannonContext.base.register(mesh, body, 'icelances')
+    
+    cannonContext.base.register(mesh, body, 'icelances', null, false)
     
     body.position.copy(position)
     body.velocity.copy(velocity)
     mesh.position.copy(position)
-    
+
+    let worldDirection = ctx.camera.getWorldDirection().clone()  
+    if(target) mesh.lookAt(target)
+
+    body.addEventListener('collide', function(evt) {
+      let entity = cannonContext.base.getEntityById(id)
+     
+      if(entity) {
+        setTimeout(() => { cannonContext.base.remove(entity) }, 1000)
+      }
+    })
+
     return { mesh, body }
   }
 }
@@ -237,19 +252,25 @@ function createIceLance(ctx, cannonContext) {
 function getShootDirection(event, ctx) {
 
   let mouse = new THREE.Vector2();
-   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1; 
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1; 
 
    // get offset between camera and hero
-   let worldDirection = ctx.camera.getWorldDirection().clone()  
-   let offset = worldDirection.clone().normalize().multiplyScalar(3)
+  let worldDirection = ctx.camera.getWorldDirection().clone()  
+  let offset = worldDirection.clone().normalize().multiplyScalar(3)
 
    let raycaster = new THREE.Raycaster();
    raycaster.setFromCamera(mouse, ctx.camera);
+   console.log('children', ctx.scene.children.filter(child => child.name !== ''))
    let intersects = raycaster.intersectObjects(
-     //Object.keys(ctx.data).map(key => ctx.data[key].mesh)
-     ctx.scene.children
-   );
+     ctx.scene.children.filter(child => 
+        child.name !== '' && 
+        child.name.indexOf('halo') < 0
+     ),
+     true
+   )
+
+   console.log('intersects', intersects)
    
    let distance = intersects[0] && intersects[0].distance || 10
 
@@ -260,15 +281,43 @@ function getShootDirection(event, ctx) {
 
    let {x,y,z} = adjustedDirection
 
-   if(intersects && intersects.length > 0) {
-     let intersect = intersects[0]
-     console.log(intersects)
-     //if(intersect) intersect.object.material.color.set(0xff0000)  
-   }
+  if(!isEmpty(intersects)) {
+    let intersect = intersects[0]
+    z = intersect.object.position.z;
+    let obj = intersect.object.parent ? 
+      intersect.object.parent : intersect.object
 
-   z = z/Math.pow(10, 2)
-   return {x, y, z}
- }
+    ctx.select(obj.clone())
+
+    let { userData } = ctx.avatar
+
+    if(userData.selected) {
+      let selected = ctx.scene.getObjectById(userData.selected, true) 
+      console.log(selected)
+      if(selected) {
+        //selected.remove(selected.children.find(child => child.name === 'halo'))
+      }
+    }
+
+    userData.selected = obj.id
+
+    let halo = new THREE.Mesh(
+      new THREE.CircleGeometry(0.5, 32),
+      new THREE.MeshBasicMaterial({opacity: 0.5, transparent: true, color: 0x0000ff})
+    )
+    halo.name = 'halo'
+    halo.up.set(0,0,1)
+   
+    halo.rotateOnAxis(new THREE.Vector3(0,0,1), Math.PI/2)
+    obj.add(halo)
+    console.log('obj - halo',obj)
+  }
+
+  return {
+    direction: adjustedDirection,
+    target: get(intersects, [0, 'point'])
+  }
+}
 
 
 export function Physics(ctx) {
@@ -289,13 +338,14 @@ export function Physics(ctx) {
 
   let heightfield = addHeightfield(ctx, cannonContext)
   
-  let shootVelo = 5;
+  let shootVelo = 10;
   
   cannonContext.spawnBoxes = spawnBoxes(ctx, cannonContext)
   cannonContext.spawnTrees = spawnTrees(ctx, cannonContext)
   cannonContext.createSnowball = createSnowball(ctx, cannonContext)
   cannonContext.createPlayerSphere = createPlayerSphere(ctx, cannonContext)
   cannonContext.createIceLance = createIceLance(ctx, cannonContext)
+
   window.addEventListener('click',function(e) {
     let {
       x, y, z
@@ -304,16 +354,19 @@ export function Physics(ctx) {
     let shootDirection = getShootDirection(event, ctx);
     
     let snowballVelocity = new THREE.Vector3(
-      shootDirection.x * shootVelo,
-      shootDirection.y * shootVelo,
-      shootDirection.z
+      shootDirection.direction.x * shootVelo,
+      shootDirection.direction.y * shootVelo,
+      shootDirection.direction.z
     )
     
     let snowballId = uuid()
     let snowball = cannonContext.createIceLance(
       snowballId, 
-      playerSphereBody.position,
-      snowballVelocity
+      new THREE.Vector3()
+        .copy(playerSphereBody.position)
+        .setComponent(2, playerSphereBody.position.z + 1),
+      snowballVelocity,
+      shootDirection.target
     )
   
     ctx.ws.send(JSON.stringify({

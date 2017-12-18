@@ -1,6 +1,6 @@
 import * as CANNON from 'cannon'
 import * as THREE from 'three'
-import { sample, flatten, findIndex } from 'lodash'
+import { sample, flatten, findIndex, has } from 'lodash'
 
 export default function Base(ctx, cannonContext) {
   let base : any = {}
@@ -32,7 +32,7 @@ export default function Base(ctx, cannonContext) {
   }
 
   base.getRandomPointOnPerimeter = () => {
-    let avatarPerimeter = ctx.scene.getObjectByName('snowman/perimeter', true);
+    let avatarPerimeter = ctx.scene.getObjectByName('snowman/halo', true);
 
     if(!avatarPerimeter) {
       return new THREE.Vector3(0, 0, 1)
@@ -47,7 +47,7 @@ export default function Base(ctx, cannonContext) {
     return vector
   }
 
-  base.register = (mesh, body, name = null, respawn = null) => {
+  base.register = (mesh, body, name = null, respawn = null, copyQuaternion = true) => {
     let { store } = base;
     
     // add to THREE
@@ -60,7 +60,7 @@ export default function Base(ctx, cannonContext) {
     
     let cache = initCache(name, respawn)
 
-    cache.entities.push({body, mesh, name})
+    cache.entities.push({body, mesh, name, copyQuaternion})
 
     return store;
   }
@@ -91,7 +91,7 @@ export default function Base(ctx, cannonContext) {
   }
 
   base.remove = (entity) => {
-    //let name = entity.name;
+    console.log('Removing:', entity)
     let cache = base.store[entity.name];
 
     let { mesh, body } = entity;
@@ -133,7 +133,7 @@ export default function Base(ctx, cannonContext) {
     entities.forEach((entity, i) => {
       if(entity.body) {
         entity.mesh.position.copy(entity.body.position)
-        entity.mesh.quaternion.copy(entity.body.quaternion)
+        if(entity.copyQuaternion) entity.mesh.quaternion.copy(entity.body.quaternion)
       }
     })
 
@@ -144,6 +144,22 @@ export default function Base(ctx, cannonContext) {
     if(!base.store[name]) return []
 
     return base.store[name];
+  }
+
+
+  base.getEntityById = (id) => {
+    let needle;
+
+    Object.keys(base.store).forEach(key => {
+      let entities = base.store[key].entities;
+      Object.keys(entities).forEach(key => {
+        if(entities[key].mesh.name === id) {
+          needle = entities[key];
+        }
+      })
+    })
+    
+    return needle;
   }
 
   base.cullDistantObjects = (entities) => {
@@ -190,13 +206,13 @@ export default function Base(ctx, cannonContext) {
           let visibleCount = intersects.length;
           store[key].visibleCount = visibleCount;
           
-          if(cache.entities.length > 10) {
+          if(cache.entities.length > 100) {
             base.cullDistantObjects(cache.entities)
           }
           
           if(visibleCount < 1) {    
             if(cache.respawn) {
-              if(cache.entities.length > 40) base.removeMeshesByName(key)
+              if(cache.entities.length > 100) base.removeMeshesByName(key)
               cache.respawn()
             }
           }

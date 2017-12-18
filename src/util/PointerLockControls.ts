@@ -14,11 +14,12 @@ function PointerLockControls(camera, cannonBody, avatar) {
       var scope = this;
   
       var pitchObject = new THREE.Object3D();
-      pitchObject.add( camera );
+      pitchObject.add(camera)
   
       var yawObject = new THREE.Object3D();
       yawObject.position.z = 2;
-      yawObject.add( pitchObject );
+
+      yawObject.add(pitchObject)
   
       var quat = new THREE.Quaternion();
   
@@ -64,6 +65,8 @@ function PointerLockControls(camera, cannonBody, avatar) {
       };
   
       var onKeyDown = function ( event ) {
+          if(cannonBody.sleepState === 2) cannonBody.wakeUp()
+          
           switch ( event.keyCode ) {
   
               case 38: // up
@@ -73,7 +76,8 @@ function PointerLockControls(camera, cannonBody, avatar) {
   
               case 37: // left
               case 65: // a
-                  moveLeft = true; break;
+                  moveLeft = true; 
+                  break;
   
               case 40: // down
               case 83: // s
@@ -86,8 +90,8 @@ function PointerLockControls(camera, cannonBody, avatar) {
                   break;
   
               case 32: // space
-                  if ( canJump === true ){
-                      velocity.z = jumpVelocity;
+                  if (canJump === true) {
+                    velocity.z = jumpVelocity;
                   }
                   canJump = false;
                   break;
@@ -141,6 +145,7 @@ function PointerLockControls(camera, cannonBody, avatar) {
       // Moves the camera to the Cannon.js object position and adds velocity to the object if the run key is down
       var inputVelocity = new THREE.Vector3();
       var euler = new THREE.Euler();
+
       this.update = function ( delta ) {
   
           //if ( scope.enabled === false ) return;
@@ -177,7 +182,7 @@ function PointerLockControls(camera, cannonBody, avatar) {
           // Add to the object
           velocity.x += inputVelocity.x;
           velocity.y += inputVelocity.y;
-  
+          
           yawObject.position.copy(cannonBody.position);
       };
   };

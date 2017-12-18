@@ -62,7 +62,7 @@ function Tree() {
     ctx.top.receiveShadow = false;
     ctx.top.position.y = 0.9;
     ctx.top.rotation.y = (Math.random() * (Math.PI));
-    
+    ctx.top.name = 'tree/top'
     return ctx;
   }
   
@@ -75,7 +75,7 @@ function Tree() {
     	})
     )
     ctx.trunk.position.y = 0.25;
-    
+    ctx.trunk.name = 'tree/trunk'
     return ctx;
   }
 
