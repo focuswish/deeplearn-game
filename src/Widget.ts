@@ -71,15 +71,9 @@ export function SpriteTile(mesh) {
   let light = new THREE.HemisphereLight(0xfffafa, 0x000000, 0.7)
   
   scene.background = new THREE.Color(0xdddddd)
-  //mesh.geometry.computeBoundingSphere();
-  //let radius = mesh.geometry.boundingSphere.radius;
+  mesh.position.set(-0.2,-0.2,0)
+  mesh.scale.set(1.2, 1.2, 1.2)
 
-  //mesh.rotation.x += Math.PI / 8
-  //mesh.rotation.y += Math.PI / 8
-  //mesh.scale.set(radius * 24, radius * 24, radius * 24)
-  mesh.position.set(-0.1,-0.1,0)
-  //mesh.geometry.normalize()
-  //console.log(mesh)
   scene.add(light)
   scene.add(mesh)
   
@@ -128,8 +122,8 @@ export function healthBar() {
   //innerDiv.dispatchEvent(evt);
 }
 
-export function heroSelection() {
-
+export function heroSelection(ctx) {
+   let cache = {}
    let selected = Widget().create({
      id: 'selected-object',
      style: {
@@ -145,11 +139,19 @@ export function heroSelection() {
    })
 
    return function select(mesh) {
-    console.log('select() - mesh',mesh)
-    let url = SpriteTile(mesh)
-    console.log(url)
+    let { name } = mesh;
+    let url;
+
+    if(cache[name]) {
+      url = cache[name];
+    } else {
+      url = SpriteTile(mesh.clone())
+      cache[name] = url;
+    }
+      
     selected.element.style.backgroundImage = `url(${url})`
     selected.element.style.backgroundSize = 'cover'
     selected.element.style.display = 'block'
+    ctx.avatar.userData.selected = mesh.id
    }
 }

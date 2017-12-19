@@ -192,7 +192,7 @@ async function World() {
   ctx.avatar = ctx.data[avatar.name].mesh;
 
   ctx.scene.updateMatrixWorld()
-  ctx.select = widgets.heroSelection()
+  ctx.select = widgets.heroSelection(ctx)
   
   let cannonContext = Physics(ctx)
   
@@ -236,7 +236,19 @@ async function World() {
   
   let start = time()
   let lastUpdated = time()
-  
+
+  let halo = new THREE.Mesh(
+    new THREE.CircleGeometry(0.5, 32),
+    new THREE.MeshBasicMaterial({opacity: 0.5, transparent: true, color: 0x0000ff})
+  )
+  halo.name = 'halo'
+  halo.up.set(0,0,1)
+  halo.rotateOnAxis(new THREE.Vector3(0,0,1), Math.PI/2)
+  halo.visible = false
+  ctx.scene.add(halo)
+
+  const getSelected = () => ctx.avatar.userData.selected ? ctx.scene.getObjectById(ctx.avatar.userData.selected) : null
+
   function updatePhysics() {
     // Step the physics world
     var timeSinceLastCall = time() - start
@@ -247,7 +259,13 @@ async function World() {
     base.sync('icelances')
      
     let players = Object.keys(ctx.data)
-     
+    
+    let selected = getSelected()
+
+    if(halo && selected) {
+      halo.visible = true;
+      halo.position.copy(selected.position)
+    }
 
     if(players.length > 0) {
       players.forEach(key => {
@@ -268,9 +286,7 @@ async function World() {
           }
 
           let t = (time() - lastUpdated)          
-          //player.mesh.position.addScaledVector(
-          //  player.body.velocity, t
-          //)
+       
           player.mesh.position.copy(player.body.position)
           player.mesh.children[0].quaternion.copy(player.body.quaternion)
         
@@ -325,9 +341,11 @@ async function World() {
     widgets.healthBar()
     
     console.log(ctx)
+    let nearbyIndex = 0;
+
     window.addEventListener('keydown', function(e) {
       let position = ctx.playerSphereBody.position.toArray().map(p => Math.round(p))
-
+      console.log(e)
       document.getElementById('info').innerHTML = `<span>${position.join(', ')}<span>` ;
 
       switch(e.code) {
@@ -338,12 +356,36 @@ async function World() {
           ctx.zoom++
         break
       case 'Backquote':
-        if(ctx.controls.enabled) {
-          ctx.controls.enabled = false;
-        } else {
-          ctx.controls.enabled = true;
+        console.log(base.nearby)
+        if(base.nearby) {
+          if(base.nearby.length <= nearbyIndex) {
+            nearbyIndex = 0;
+          }
+
+          let selected = base.nearby[nearbyIndex].object;
+          if(selected) {
+            nearbyIndex++
+            ctx.select(selected)
+          }
+          
         }
+
         break;
+      case 'Digit1':
+        console.log(ctx)
+        let target = getSelected()
+        let origin = ctx.avatar.position.clone()
+        console.log(target)
+      
+        cannonContext.createIceLance(uuid(), origin, target.position)
+        break;
+      //case 'Backquote':
+      //  if(ctx.controls.enabled) {
+      //    ctx.controls.enabled = false;
+      //  } else {
+      //    ctx.controls.enabled = true;
+      //  }
+      //  break;
       }
     })
 

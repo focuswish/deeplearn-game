@@ -109,7 +109,8 @@ function Tree() {
     ctx.tree.add(createTrunk().trunk);
     ctx.tree.add(createTop().top);
     ctx.tree.name = 'tree'
-
+    ctx.tree.userData.selectable = true;
+    
     return ctx;
   }
   

@@ -1,6 +1,6 @@
 import * as CANNON from 'cannon'
 import * as THREE from 'three'
-import { sample, flatten, findIndex, has } from 'lodash'
+import { sample, flatten, findIndex, has, isEmpty } from 'lodash'
 
 export default function Base(ctx, cannonContext) {
   let base : any = {}
@@ -30,6 +30,8 @@ export default function Base(ctx, cannonContext) {
     let distance = snowmanPosition.distanceTo(position)
     return distance;
   }
+
+  base.getDistanceFromAvatar = getDistanceFromAvatar
 
   base.getRandomPointOnPerimeter = () => {
     let avatarPerimeter = ctx.scene.getObjectByName('snowman/halo', true);
@@ -65,6 +67,10 @@ export default function Base(ctx, cannonContext) {
     return store;
   }
 
+  base.registerMesh = (mesh) => {
+    ctx.scene.add(mesh)
+  }
+
   base.removeMesh = (mesh) => {
     function removeAssociatedObjects(child) {
       if(child.geometry) child.geometry.dispose()
@@ -84,9 +90,7 @@ export default function Base(ctx, cannonContext) {
     }
 
     removeAssociatedObjects(mesh)
-    //if(ctx.scene.getObjectById (mesh.id)) ctx.scene.remove(mesh)
     ctx.scene.remove(mesh)
-
     return
   }
 
@@ -118,7 +122,6 @@ export default function Base(ctx, cannonContext) {
       base.remove(entity)
     })
 
-    //delete base.store[name]
     cache.visibleCount = 0;
     cache.entities = []
 
@@ -162,16 +165,24 @@ export default function Base(ctx, cannonContext) {
     return needle;
   }
 
-  base.cullDistantObjects = (entities) => {
+  base.getNearbyObjects = () => {
+    let objects = ctx.scene.children
+      .filter(child => 
+        child.userData && child.userData.selectable
+      ).map(object => ({
+        object, 
+        distance: base.getDistanceFromAvatar(object.position)
+      }))
+      .sort((a, b) => a.distance - b.distance)
 
-    let horizon = entities.map((entity, i) => ({
-      distance: getDistanceFromAvatar(entity.mesh.position),
-      ...entity
-    })).sort((a,b) => a.distance - b.distance)
-    
-    if(!horizon) return
+    base.nearby = objects;
+  }
 
-    horizon.slice(0, 10).forEach(entity => {
+  base.cullDistantObjects = () => {
+
+    let farAway = base.nearby.reverse()
+
+    farAway.slice(0, 10).forEach(entity => {
        base.remove(entity)
     })
   }
@@ -180,6 +191,8 @@ export default function Base(ctx, cannonContext) {
     let { store, frustum } = base;
     
     setTimeout(() => {
+      base.getNearbyObjects()
+
       let player = cannonContext.playerSphereBody;
       let key = ctx.avatar.name;
 
@@ -207,7 +220,7 @@ export default function Base(ctx, cannonContext) {
           store[key].visibleCount = visibleCount;
           
           if(cache.entities.length > 100) {
-            base.cullDistantObjects(cache.entities)
+            //base.cullDistantObjects(cache.entities)
           }
           
           if(visibleCount < 1) {    
@@ -221,7 +234,7 @@ export default function Base(ctx, cannonContext) {
       
       base.tick()
 
-    }, 500)
+    }, 1000)
   }
 
 

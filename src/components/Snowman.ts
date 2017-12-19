@@ -74,6 +74,7 @@ export default function Avatar(id, font) {
   )
   
   snowmanHalo.name = 'snowman/halo'
+  snowmanHalo.visible = false;
   middleSnowman.add(snowmanHalo)
 
   let twig1 = Wood(0.1, 2, 0.1)
@@ -87,9 +88,10 @@ export default function Avatar(id, font) {
   middleSnowman.add(text)
   let avatar = new THREE.Group()
 
-  avatar.name = id
+  avatar.name = 'snowman'
   avatar.userData.type = 'player'
   avatar.userData.health = 100;
+  avatar.userData.id = id;
   
   avatar.add(bottomSnowman)
   avatar.add(middleSnowman)

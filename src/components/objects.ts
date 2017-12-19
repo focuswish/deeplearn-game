@@ -89,6 +89,7 @@ export function Box() {
   )
 
   mesh.name = 'box'
+  mesh.userData.selectable = true;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
 
