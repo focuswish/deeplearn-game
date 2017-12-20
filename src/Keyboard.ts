@@ -38,7 +38,7 @@ Keyboard.prototype.handleKeyDown = function() {
           let selected = nearby()[nearbyIndex].object;
           if (selected) {
             nearbyIndex++;
-            Widget(this.avatar).target(selected, this.avatar)
+            Widget(this.avatar, this._assets.textures['gradient1']).target(selected, this.avatar)
           }
         }
         break;

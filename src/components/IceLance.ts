@@ -30,9 +30,9 @@ IceLance.prototype.emit = function(id, origin, targetMesh) {
 
       if (targetMesh.userData.health < 0) {
         this.scene.remove(targetMesh);
-        Widget(this.avatar).untarget()
+        Widget(this.avatar, this._assets.textures['gradient1']).untarget()
       } else {
-        Widget(this.avatar).update(targetMesh)
+        Widget(this.avatar, this._assets.textures['gradient1']).update(targetMesh)
         if(targetMesh.userData.type === 'player') {
           const { body } = this.data[targetMesh.userData.id];
           if(body) {

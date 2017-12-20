@@ -76138,6 +76138,7 @@ World.prototype.render = function () {
     };
 };
 World.prototype.init = function () {
+    this.scene.background = this._assets.textures['gradient2'];
     let pointerlockchange = (event) => {
         this.controls.enabled = true;
     };
@@ -76258,14 +76259,20 @@ Assets.prototype.loadFonts = function () {
 Assets.prototype.loadTextures = function () {
     return __awaiter(this, void 0, void 0, function* () {
         const loader = new THREE.TextureLoader();
-        const promise = new Promise((resolve, reject) => {
-            loader.load(constants_1.BASE_ASSET_URL + 'crate.jpg', texture => resolve(texture));
+        const load = (name) => new Promise((resolve, reject) => {
+            loader.load(constants_1.BASE_ASSET_URL + name, texture => resolve(texture));
         });
-        const texture = yield promise;
-        texture.magFilter = THREE.NearestFilter;
-        texture.minFilter = THREE.LinearMipMapLinearFilter;
+        const images = ['crate.jpg', 'gradient2.png', 'gradient1.png'];
+        const textures = yield Promise.all([
+            images.map(image => load(image))
+        ]);
         this._assets.textures = {};
-        this._assets.textures['box'] = texture;
+        textures.forEach((texture, i) => {
+            texture.magFilter = THREE.NearestFilter;
+            texture.minFilter = THREE.LinearMipMapLinearFilter;
+            let name = images[i].split('.')[0];
+            this._assets.textures[name] = texture;
+        });
         return this;
     });
 };
@@ -76497,7 +76504,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
 function Context() {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x191970);
+    //this.scene.background = new THREE.Color(0x191970)
     this.scene.fog = new THREE.FogExp2(0x000000, 0.0025 * 50);
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.tilt = -4;
@@ -76567,7 +76574,7 @@ Keyboard.prototype.handleKeyDown = function () {
                     let selected = nearby()[nearbyIndex].object;
                     if (selected) {
                         nearbyIndex++;
-                        Widget_1.default(this.avatar).target(selected, this.avatar);
+                        Widget_1.default(this.avatar, this._assets.textures['gradient1']).target(selected, this.avatar);
                     }
                 }
                 break;
@@ -76751,7 +76758,7 @@ Physics.prototype.getClickTarget = function (event) {
     };
     if (!lodash_1.isEmpty(intersects)) {
         let intersect = intersects[0];
-        Widget_1.default(this.avatar).target(getParentMesh(intersect.object));
+        Widget_1.default(this.avatar, this._assets.textures.gradient2).target(getParentMesh(intersect.object));
     }
     return intersects;
 };
@@ -76790,17 +76797,8 @@ exports.Physics = Physics;
 
 },{"../Widget":15,"../components/Tree":19,"../components/objects":20,"cannon":1,"lodash":2,"three":3}],15:[function(require,module,exports){
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
-const constants_1 = require("./constants");
 const healthbar = {
     id: 'ui-avatar',
     style: {
@@ -76808,7 +76806,8 @@ const healthbar = {
         right: '10px',
         top: '10px',
         width: '200px',
-        backgroundColor: '#fafafa',
+        //backgroundColor: '#fafafa',
+        backgroundImage: 'linear-gradient(0deg, #E6E9F0 0%, #EEF1F5 100%)',
         boxShadow: '0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.3)'
     },
     dataset: {
@@ -76845,7 +76844,7 @@ const selectedObjectInner = {
         marginTop: '35px'
     }
 };
-function Widget(avatar) {
+function Widget(avatar, gradient) {
     let bar = () => document.getElementById('ui-avatar');
     let div = () => document.getElementById('ui-target');
     if (!bar()) {
@@ -76858,6 +76857,7 @@ function Widget(avatar) {
     this.div = div();
     this.bar = bar();
     this.avatar = avatar;
+    this.gradient = gradient;
 }
 Widget.prototype.reset = function () {
     this.element = null;
@@ -76885,61 +76885,57 @@ Widget.prototype.create = function (props = {}, parent = null) {
     }
     return this;
 };
-function meshToDataURL(mesh) {
-    return __awaiter(this, void 0, void 0, function* () {
-        let camera = new THREE.PerspectiveCamera(70, 1, 0.01, 10);
-        camera.position.z = 1;
-        camera.position.y = -1;
-        camera.lookAt(0, 0, 0);
-        camera.up.set(0, 0, 1);
-        let scene = new THREE.Scene();
-        let light = new THREE.HemisphereLight(0xffffff, 0x000000, 0.7);
-        mesh.position.set(0, 0, 0);
-        mesh.scale.set(1.2, 1.2, 1.2);
-        scene.add(light);
-        scene.add(mesh);
-        const loader = new THREE.TextureLoader();
-        const load = new Promise((resolve, reject) => {
-            loader.load(constants_1.BASE_ASSET_URL + 'gradient.png', (texture) => resolve(texture));
-        });
-        scene.background = yield load;
-        let renderer = new THREE.WebGLRenderer({
-            antialias: true,
-            preserveDrawingBuffer: true,
-            alpha: true
-        });
-        renderer.setSize(100, 100);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setClearColor(0x000000, 0.0);
-        //renderer.domElement.style.backgroundImage = 'linear-gradient(0deg, #ACCBEE 0%, #E7F0FD 100%)'
-        renderer.render(scene, camera);
-        let url = renderer.domElement.toDataURL();
-        renderer.forceContextLoss();
-        scene = null;
-        camera = null;
-        return url;
+function meshToDataURL(mesh, gradient) {
+    let camera = new THREE.PerspectiveCamera(70, 1, 0.01, 10);
+    camera.position.z = 1;
+    camera.position.y = -1;
+    camera.lookAt(0, 0, 0);
+    camera.up.set(0, 0, 1);
+    let scene = new THREE.Scene();
+    let light = new THREE.HemisphereLight(0xffffff, 0x000000, 0.7);
+    mesh.position.set(0, 0, 0);
+    mesh.scale.set(1.2, 1.2, 1.2);
+    scene.add(light);
+    scene.add(mesh);
+    //const loader = new THREE.TextureLoader()
+    //const load = new Promise((resolve, reject) => {
+    //  loader.load(BASE_ASSET_URL + 'gradient.png', (texture) => resolve(texture))
+    //})
+    scene.background = gradient;
+    let renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        preserveDrawingBuffer: true,
+        alpha: true
     });
+    renderer.setSize(100, 100);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setClearColor(0x000000, 0.0);
+    //renderer.domElement.style.backgroundImage = 'linear-gradient(0deg, #ACCBEE 0%, #E7F0FD 100%)'
+    renderer.render(scene, camera);
+    let url = renderer.domElement.toDataURL();
+    renderer.forceContextLoss();
+    scene = null;
+    camera = null;
+    return url;
 }
 Widget.prototype.target = function (mesh) {
-    return __awaiter(this, void 0, void 0, function* () {
-        console.log(this);
-        let { name } = mesh;
-        let url;
-        if (this.cache[name]) {
-            url = this.cache[name];
-        }
-        else {
-            url = yield meshToDataURL(mesh.clone());
-            this.cache[name] = url;
-        }
-        if (mesh.userData.health) {
-            this.div.childNodes[0].innerHTML = `${mesh.userData.health}/100`;
-        }
-        this.div.style.backgroundImage = `url(${url})`;
-        this.div.style.backgroundSize = 'cover';
-        this.div.style.display = 'block';
-        this.avatar.userData.selected = mesh.id;
-    });
+    console.log(this);
+    let { name } = mesh;
+    let url;
+    if (this.cache[name]) {
+        url = this.cache[name];
+    }
+    else {
+        url = meshToDataURL(mesh.clone(), this.gradient);
+        this.cache[name] = url;
+    }
+    if (mesh.userData.health) {
+        this.div.childNodes[0].innerHTML = `${mesh.userData.health}/100`;
+    }
+    this.div.style.backgroundImage = `url(${url})`;
+    this.div.style.backgroundSize = 'cover';
+    this.div.style.display = 'block';
+    this.avatar.userData.selected = mesh.id;
 };
 Widget.prototype.untarget = function () {
     let elem1 = document.getElementById('ui-target-health');
@@ -76959,14 +76955,14 @@ Widget.prototype.update = function (mesh) {
         }
     }
 };
-function default_1(avatar) {
+function default_1(avatar, gradient) {
     let widget = Object.create(Widget.prototype);
-    Widget.apply(widget, [avatar]);
+    Widget.apply(widget, [avatar, gradient]);
     return widget;
 }
 exports.default = default_1;
 
-},{"./constants":21,"three":3}],16:[function(require,module,exports){
+},{"three":3}],16:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const CANNON = require("cannon");
@@ -76984,19 +76980,19 @@ IceLance.prototype.emit = function (id, origin, targetMesh) {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.name = "icelance";
-    mesh.position.copy(origin);
+    mesh.position.copy(origin.addScaledVector(direction, 0.1));
     mesh.lookAt(target);
     mesh.rotateX(Math.PI / 2);
     mesh.onAfterRender = () => {
-        if (mesh.position.distanceTo(target) < 0.05) {
+        if (mesh.position.distanceTo(target) < 0.1) {
             this.scene.remove(mesh);
             targetMesh.userData.health += -10;
             if (targetMesh.userData.health < 0) {
                 this.scene.remove(targetMesh);
-                Widget_1.default(this.avatar).untarget();
+                Widget_1.default(this.avatar, this._assets.textures['gradient1']).untarget();
             }
             else {
-                Widget_1.default(this.avatar).update(targetMesh);
+                Widget_1.default(this.avatar, this._assets.textures['gradient1']).update(targetMesh);
                 if (targetMesh.userData.type === 'player') {
                     const { body } = this.data[targetMesh.userData.id];
                     if (body) {

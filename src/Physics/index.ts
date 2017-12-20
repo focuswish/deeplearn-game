@@ -232,7 +232,7 @@ Physics.prototype.getClickTarget = function(event) {
   if(!isEmpty(intersects)) {
     let intersect = intersects[0]
 
-    Widget(this.avatar).target(
+    Widget(this.avatar, this._assets.textures.gradient2).target(
       getParentMesh(intersect.object)
     )  
   }
