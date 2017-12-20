@@ -11,7 +11,7 @@ import {
 } from 'lodash'
 import Tree from '../components/Tree'
 import * as uuid from 'uuid/v4'
-import { Widget }from '../Widget'
+import Widget from '../Widget'
 
 Physics.prototype.spawnTrees = function() {
   let { terrain, scene } = this;
@@ -118,7 +118,6 @@ Physics.prototype.createDefaultPhysicsWorld = function() {
 }
 
 Physics.prototype.createPlayerSphere = function () {
-  console.log(this)
   let bottomSnowman = this.scene.getObjectByName('snowman/bottom', true)
   bottomSnowman.children[0].geometry.computeBoundingSphere()
   
@@ -141,7 +140,7 @@ Physics.prototype.createPlayerSphere = function () {
 
   this.world.addBody(playerSphereBody)
   
-  this.playerSphereBody = playerSphereBody;
+  return playerSphereBody;
   
 }
 
@@ -215,17 +214,27 @@ Physics.prototype.getClickTarget = function(event) {
 
    let intersects = raycaster.intersectObjects(
      this.scene.children.filter(child => 
-        child.userData && child.userData.selectable
+        child.userData && 
+        child.userData.selectable &&
+        child.id !== this.avatar.id
      ),
      true
    )
+  
+  const getParentMesh = (mesh) => {
+    if(mesh.parent && mesh.parent.type !== 'Scene') {
+      return this.physics.getParentMesh(mesh.parent)
+    }
+    
+    return mesh
+  }
 
   if(!isEmpty(intersects)) {
     let intersect = intersects[0]
-    let obj = intersect.object.parent && intersect.object.parent.type !== 'Scene' ? 
-      intersect.object.parent : intersect.object
 
-    this.widget.UI().target(obj, this.avatar)  
+    Widget(this.avatar).target(
+      getParentMesh(intersect.object)
+    )  
   }
 
   return intersects
@@ -233,7 +242,7 @@ Physics.prototype.getClickTarget = function(event) {
  
 Physics.prototype.init = function() {  
   this.physics.createDefaultPhysicsWorld.apply(this)
-  this.physics.createPlayerSphere.apply(this)  
+  this.data[this.avatar.userData.id].body = this.physics.createPlayerSphere.apply(this)  
   this.physics.createPhysicsContactMaterial.apply(this)
   this.physics.addHeightfield.apply(this)
   this.physics.spawnBoxes.apply(this)
@@ -242,7 +251,7 @@ Physics.prototype.init = function() {
   window.addEventListener('click', (e) => {
     let {
       x, y, z
-    } = this.playerSphereBody.position;
+    } = this.data[this.avatar.userData.id].body.position;
 
     let intersects = this.physics.getClickTarget.apply(this, [event]);
     

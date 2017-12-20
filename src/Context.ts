@@ -40,5 +40,7 @@ export default function Context() {
     frustum: new THREE.Frustum(),
     nearby: []
   }
+  
   this._base = base;
+  this._assets = {}
 }

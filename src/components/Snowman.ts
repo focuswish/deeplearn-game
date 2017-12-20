@@ -4,10 +4,10 @@ import {
   Wood
 } from './objects'
 
-function addPlayerName(font) {
+function addPlayerName(font, textContent) {
   let size = 4;
 
-  let textGeometry = new THREE.TextGeometry('Hello World', {
+  let textGeometry = new THREE.TextGeometry(textContent, {
     font: font,
     size: size,
 		height: size / 16,
@@ -23,7 +23,6 @@ function addPlayerName(font) {
   textMesh.geometry.scale(0.05, 0.05, 0.05)
   textMesh.geometry.center()
   textMesh.geometry.translate(0, 1.25, 0)
-  console.log(textMesh)
   return textMesh
 }
 
@@ -82,7 +81,7 @@ export default function Avatar(id, font) {
   twig1.geometry.translate(0, 0, 1.25)
   twig1.rotation.set(0, 0, Math.PI / 2)
   
-  let text = addPlayerName(font)
+  let text = addPlayerName(font, id)
 
   middleSnowman.add(twig1)
   middleSnowman.add(text)
@@ -93,7 +92,8 @@ export default function Avatar(id, font) {
   avatar.userData.health = 100;
   avatar.userData.id = id;
   avatar.userData.selectable = true
-  
+  avatar.userData.isPlayer = true;
+
   avatar.add(bottomSnowman)
   avatar.add(middleSnowman)
   avatar.add(topSnowman)

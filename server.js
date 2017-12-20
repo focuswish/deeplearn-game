@@ -47,7 +47,6 @@ wss.broadcast = function broadcast(data) {
 };
 
 wss.on('connection', function connection(ws) {
-  console.log(ws)
   ws.isAlive = true
   ws.on('pong', heartbeat)
   ws.on('message', function incoming(data) {

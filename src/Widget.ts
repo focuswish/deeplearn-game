@@ -2,63 +2,104 @@ import { Box } from './components/objects'
 import * as THREE from 'three'
 import { BASE_ASSET_URL } from './constants'
 
-export function Widget() {
-  let widget : any = {}
-  
-  const set = (element, props) => {
-    
-    for (let key in props) {
-      if (typeof props[key] === 'object') {
-        set(element[key], props[key])
-      } else {
-        element[key] = props[key]
-      }
-    }
-
-    return widget;
+const healthbar = {
+  id: 'ui-avatar',
+  style: {
+    position: 'absolute',
+    right: '10px',
+    top: '10px',
+    width: '200px',
+    backgroundColor: '#fafafa',
+    boxShadow: '0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.3)'
+  },
+  dataset: {
+    health: 100
   }
-  
-  widget.update = (widget, data) => {
-    set(widget, data)    
+}
+
+const healthbarInner = {
+  style: {
+    width: '100%',
+    height: '20px',
+    backgroundImage: 'linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%)'
   }
-  
-  widget.handleUpdate = (e) => {
-  	let { detail } = e;
-    let dataset = {
-      ...detail
-    }
-    
-    let style : any = {}
-    
-    if(dataset.health) {
-      style.width = `${dataset.health}%`; 
-    }
-    
-    set(e.srcElement, {dataset, style})
+}
+
+const selectedObject = {
+  id: 'ui-target',
+  style: {
+    position: 'absolute',
+    left: '10px',
+    top: '10px',
+    width: '50px',
+    height: '50px',
+    backgroundColor: '#ddd',
+    boxShadow: '0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.3)',
+    display: 'none'
+  },
+}
+
+const selectedObjectInner = {
+  id: 'ui-target-health',
+  textContent: '100/100',     
+  style: {
+    textAlign: 'center',
+    fontSize: '10px',
+    color: '#333',
+    marginTop: '35px'
+  }
+}
+
+function Widget(avatar) {
+  let bar = () => document.getElementById('ui-avatar')
+  let div = () => document.getElementById('ui-target')
+
+  if(!bar()) {
+    this.create(healthbar).create(healthbarInner).reset()
+  }
+  if(!div()) {
+    this.create(selectedObject).create(selectedObjectInner).reset()
   }
 
-  widget.create = (props = {}, parent = null) => {
+  this.cache = {}
+  this.div = div()
+  this.bar = bar()
+  this.avatar = avatar;
+}
 
-    let mergedProps = {
-      ...props,
+Widget.prototype.reset = function() {
+  this.element = null;
+  return this;
+}
+
+Widget.prototype.set = function(element, props) {
+  for (let key in props) {
+    if (typeof props[key] === 'object') {
+      this.set(element[key], props[key])
+    } else {
+      element[key] = props[key]
     }
-    
-    let element = document.createElement('div')
-    set(element, mergedProps)
-    let container  = widget.element ? widget.element : document.querySelector('body')
-    container.appendChild(element) 
-    
-    if(!widget.element) {   
-      widget.element = element;
-    }
-    
-    element.addEventListener('update', widget.handleUpdate)
-     
-    return widget;
   }
-  
-  return widget
 
+  return this;
+}
+
+  
+Widget.prototype.create = function(props = {}, parent = null) {
+  let mergedProps = {
+    ...props,
+  }
+    
+  let element = document.createElement('div')
+  this.set.apply(this, [element, mergedProps])
+  let container  = this.element ? this.element : document.querySelector('body')
+  container.appendChild(element) 
+    
+  if(!this.element) {   
+    this.element = element;
+  }
+    
+  return this;
 }
 
 function meshToDataURL (mesh) {
@@ -76,107 +117,75 @@ function meshToDataURL (mesh) {
 
   scene.add(light)
   scene.add(mesh)
-  
+
+  let texture = new THREE.TextureLoader().load(BASE_ASSET_URL + 'gradient.jpg')
+  scene.background = texture;
+
   let renderer = new THREE.WebGLRenderer({ 
     antialias: true, 
     preserveDrawingBuffer: true,
     alpha: true
   })
 
-  renderer.setClearColor( 0x191970 )
   renderer.setSize( 100, 100 )
   renderer.setPixelRatio( window.devicePixelRatio );
+  renderer.setClearColor(0x000000, 0.0)
+  //renderer.domElement.style.backgroundImage = 'linear-gradient(0deg, #ACCBEE 0%, #E7F0FD 100%)'
+  
   renderer.render(scene, camera)
-
-  return renderer.domElement.toDataURL()
+  let url = renderer.domElement.toDataURL()
+  renderer.forceContextLoss()
+  scene = null;
+  camera = null;
+  
+  return url;
 }
 
-Widget.prototype.UI = function() {
-  this.cache = {}
+Widget.prototype.target = function(mesh) {
+  console.log(this)
+  let { name } = mesh;
+  let url;
 
-  this.bar = Widget().create({
-    id: 'healthbar',
-    style: {
-      position: 'absolute',
-      right: '10px',
-      top: '10px',
-      width: '200px',
-      backgroundColor: '#fafafa',
-      boxShadow: '0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.3)'
-    },
-    dataset: {
-      health: 100
-    }
-  }).create({
-    style: {
-      width: '100%',
-      height: '20px',
-      backgroundColor: 'green'
-    }
-  })
-  let detail = {
-  	detail: {
-    	health: 95
-    }
+  if(this.cache[name]) {
+    url = this.cache[name];
+  } else {
+    url = meshToDataURL(mesh.clone())
+    this.cache[name] = url;
   }
+      
+  if(mesh.userData.health) {
+    this.div.childNodes[0].innerHTML = `${mesh.userData.health}/100`;
+  }
+  this.div.style.backgroundImage = `url(${url})`
+  this.div.style.backgroundSize = 'cover'
+  this.div.style.display = 'block'
 
-  this.createTargetBox = () => Widget().create({
-    id: 'selected-object',
-    style: {
-       position: 'absolute',
-      left: '10px',
-      top: '10px',
-      width: '50px',
-      height: '50px',
-      backgroundColor: '#ddd',
-      boxShadow: '0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.3)',
-      display: 'none'
-    },
-  }).create({
-    id: 'creature-health',
-    textContent: '100/100',     
-    style: {
-      textAlign: 'center',
-      fontSize: '10px',
-      color: '#333',
-      marginTop: '35px'
-    }
-  }).element
+  this.avatar.userData.selected = mesh.id    
+}
 
-  this.selected = document.querySelector('#creature-health') || this.createTargetBox()
+Widget.prototype.untarget = function() {
+  let elem1 = document.getElementById('ui-target-health');
+  elem1.parentElement.removeChild(elem1);
 
-  this.target = (mesh, avatar) => {
-    let { name } = mesh;
-    let url;
-  
-    if(this.cache[name]) {
-      url = this.cache[name];
+  let elem2 = document.getElementById('ui-target')
+  elem2.parentElement.removeChild(elem2);
+
+  this.create(selectedObject).create(selectedObjectInner).reset()
+  this.div = document.getElementById('ui-target')
+}
+
+Widget.prototype.update = function(mesh) {
+  if(mesh.userData.health) {
+    if(mesh.userData.id === this.avatar.userData.id) {
+      this.bar.childNodes[0].style.width = `${mesh.userData.health}%`
     } else {
-      url = meshToDataURL(mesh.clone())
-      this.cache[name] = url;
-    }
-        
-    if(mesh.userData.health) {
-      this.selected.childNodes[0].innerHTML = `${mesh.userData.health}/100`;
-    }
-    this.selected.style.backgroundImage = `url(${url})`
-    this.selected.style.backgroundSize = 'cover'
-    this.selected.style.display = 'block'
-  
-    avatar.userData.selected = mesh.id    
-  }
-
-  this.untarget = () => {
-    let elem = document.getElementById('creature-health');
-    elem.parentElement.removeChild(elem);
-    this.selected = document.getElementById('creature-health') || this.createTargetBox()
-  }
-
-  this.update = (mesh) => {
-    if(mesh.userData.health) {
-      this.selected.innerHTML = `${mesh.userData.health}/100`;
+      this.div.childNodes[0].innerHTML = `${mesh.userData.health}/100`;      
     }
   }
+}
 
-  return this;
+export default function(avatar) {
+    let widget = Object.create(Widget.prototype)
+    Widget.apply(widget, [avatar])
+    return widget;
 }

@@ -5,8 +5,6 @@ import { sample, flatten, findIndex, has, isEmpty } from 'lodash'
 export default function Base() {}
 
 Base.prototype.init = function(name, respawn) {
-  
-  //Base.apply(this)
   let { store } = this._base;
   
   if(!store[name]) store[name] = {}
@@ -23,7 +21,6 @@ Base.prototype.init = function(name, respawn) {
 
 
 Base.prototype.getRandomPointOnPerimeter = function() {
-  //Base.apply(this)
   let avatarPerimeter = this.scene.getObjectByName('snowman/halo', true);
 
   if(!avatarPerimeter) {
@@ -39,6 +36,7 @@ Base.prototype.getRandomPointOnPerimeter = function() {
   return vector
 }
 
+
 Base.prototype.register = function(
   mesh, 
   body, 
@@ -46,9 +44,6 @@ Base.prototype.register = function(
   respawn = null, 
   copyQuaternion = true
 ) {
-    //Base.apply(this)
-    console.log(this.base)
-
     let { store } = this._base;
     
     // add to THREE
@@ -67,7 +62,6 @@ Base.prototype.register = function(
 }
 
 Base.prototype.registerMesh = function(mesh) {
-  
   this.scene.add(mesh)
 }
 
@@ -96,7 +90,6 @@ Base.prototype.removeMesh = function (mesh) {
 }
 
 Base.prototype.remove = function (entity) {
-  //Base.apply(this)
   let cache = this._base.store[entity.name];
 
   let { mesh, body } = entity;
@@ -112,7 +105,6 @@ Base.prototype.remove = function (entity) {
 }
   
 Base.prototype.removeMeshesByName = function(name) {
-  //Base.apply(this)
   let cache = this._base.store[name]
   
   if(!cache) return
@@ -130,7 +122,6 @@ Base.prototype.removeMeshesByName = function(name) {
 }
 
 Base.prototype.sync = function (name) {
-  //Base.apply(this)
   if(!this._base.store[name]) return this;
 
   let { entities } = this._base.store[name];
@@ -146,20 +137,16 @@ Base.prototype.sync = function (name) {
 }
 
 Base.prototype.get = (name) => {
-  //Base.apply(this)
   if(!this._base.store[name]) return []
 
   return this._base.store[name];
 }
 
 Base.prototype.getNearby = function () {
-  //Base.apply(this)
   return this._base.nearby
 }
 
-
 Base.prototype.getEntityById = function (id) {
-  //Base.apply(this)
   let needle;
 
   Object.keys(this._base.store).forEach(key => {
@@ -175,10 +162,11 @@ Base.prototype.getEntityById = function (id) {
 }
 
 Base.prototype.getNearbyObjects = function () {
-  //Base.apply(this)
   let objects = this.scene.children
     .filter(child => 
-      child.userData && child.userData.selectable
+      child.userData && 
+      child.userData.selectable &&
+      child.id !== this.avatar.id
     ).map(object => ({
       object, 
       distance: this.avatar.position.distanceTo(object.position)
@@ -191,8 +179,6 @@ Base.prototype.getNearbyObjects = function () {
 }
 
 Base.prototype.cullDistantObjects = function () {
-  //Base.apply(this)
-
   let farAway = this._base.nearby.reverse()
 
   farAway.slice(0, 10).forEach(entity => {
@@ -201,20 +187,19 @@ Base.prototype.cullDistantObjects = function () {
 }
 
 Base.prototype.tick = function () {
-  //Base.apply(this)
   let { store, frustum } = this._base;
     
   setTimeout(() => {
     this.base.getNearbyObjects.apply(this)
 
     let player = this.playerSphereBody;
-    let key = this.avatar.name;
+    let key = this.avatar.userData.id;
 
     let wsData = {
       position: this.data[key].body.position,
       velocity: this.data[key].body.velocity,
       didSpawn: this.data[key].didSpawn,
-      id: this.data[key].id,
+      id: key,
       timestamp: new Date().getTime() / 1000,
       type: 'player'
     }
@@ -254,7 +239,6 @@ Base.prototype.tick = function () {
 
 
 Base.prototype.update = function () {
-  //Base.apply(this)
   let { 
     cameraViewProjectionMatrix,
     frustum 
@@ -271,4 +255,9 @@ Base.prototype.update = function () {
   );
 
   frustum.setFromMatrix(cameraViewProjectionMatrix);
+}
+
+Base.prototype.getPlayerById = function(id) {
+  const objects = this.scene.children;
+  return objects.find(o => o.userData && o.userData.id === id)
 }

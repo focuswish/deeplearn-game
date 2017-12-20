@@ -1,6 +1,6 @@
 import * as CANNON from "cannon";
 import * as THREE from "three";
-import { Widget } from '../Widget'
+import Widget from '../Widget'
 
 export default function IceLance() {}
 
@@ -30,9 +30,9 @@ IceLance.prototype.emit = function(id, origin, targetMesh) {
 
       if (targetMesh.userData.health < 0) {
         this.scene.remove(targetMesh);
-        Widget.prototype.UI().untarget()
+        Widget(this.avatar).untarget()
       } else {
-        Widget.prototype.UI().update(targetMesh)
+        Widget(this.avatar).update(targetMesh)
       }
     } else {
       mesh.position.lerp(target, 0.2);

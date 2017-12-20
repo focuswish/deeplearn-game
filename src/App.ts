@@ -16,7 +16,7 @@ import Snowman from './components/Snowman'
 import Tree from './components/Tree';
 import PointerLockControls from './util/PointerLockControls'
 import * as uuid from 'uuid/v4'
-import { Widget } from './Widget'
+import Widget from './Widget'
 import { randomArrayInRange } from 'deeplearn/dist/test_util';
 import Helper, {
   loadFont,
@@ -28,21 +28,18 @@ import Keyboard from './Keyboard'
 import IceLance from './components/IceLance'
 import Context from './Context'
 import Base from './Base'
+import Assets from './Assets'
 
 function World() {
   Context.apply(this)
-  //let widget = Object.create(Widget.prototype)
-  //this.ui = widget.UI.apply(this)
   THREE.Object3D.DefaultUp.set(0, 0, 1)
-
   console.log(this)
 }
 
-World.prototype.widget = Object.create(Widget.prototype)
+World.prototype.assets = Object.create(Assets.prototype)
 World.prototype.physics = Object.create(Physics.prototype)
 World.prototype.base = Object.create(Base.prototype)
-//World.apply(World.prototype.physics)
-//World.prototype.base.constructor = Base.prototype.constructor;
+
 
 World.prototype.light = function() {
   let light = new THREE.HemisphereLight(0xfffafa,0x000000, .7)
@@ -56,23 +53,8 @@ World.prototype.light = function() {
   return this
 }
 
-World.prototype.createMap = async function() {
-  this.terrain.geometry = new THREE.Geometry();    
-
-  let heightmap = await fetch('/heightmap')
-    .then(resp => resp.json())
-  
-  let terrain = Terrain({
-    position: [0, 0, 0],
-    color: 0x7cfc00,
-    altitude: heightmap
-  })
-
-  this.tiles.push(terrain)
-  this.scene.add(terrain)
-  this.terrain.geometry.vertices = this.terrain.geometry.vertices.concat(
-    terrain.geometry.vertices
-  )
+World.prototype.create = async function() {
+  await this.assets.load.apply(this)
 
   return this;
 }
@@ -149,23 +131,40 @@ World.prototype.init = function() {
 
   this.controls = new PointerLockControls(
     this.camera, 
-    this.playerSphereBody, 
+    this.data[this.avatar.userData.id].body, 
     this.avatar
   );
 
   this.scene.add(this.controls.getObject())
+  this.createHalo()
   this.animate()
+
   this.base.tick.apply(this)
-  this.getNearby = this.base.getNearby.bind(this);
 
   Keyboard.prototype.handleKeyDown.apply(this)
-  
+
   this.ws.onmessage = (event) => {
     let message = JSON.parse(event.data)
 
-    if(message.type === 'snowball') {
+    if(message.type === 'icelance') {
+      
       console.log('message',message)
+      
+      let target = this.data[message.target]
+      
+      console.log('this.base.getPlayerById.apply(this, [message.target])',
+        target
+      )
 
+      if(target && target.mesh) {
+        let {x, y, z} = message.origin
+        
+        IceLance.prototype.emit.apply(this, [
+          uuid(), 
+          new THREE.Vector3(x, y, z), 
+          target.mesh
+        ])      
+      }
       return
     }
 
@@ -178,15 +177,15 @@ World.prototype.init = function() {
     if(message.id === this.avatar.userData.id) return  
 
     if(!cached.didSpawn) {
-      //this.data[message.id].didSpawn = true;
-      //let snowman = Snowman(message.id, font)
-      //this.scene.add(snowman)
-      //this.data[message.id].mesh = snowman
+      this.data[message.id].didSpawn = true;
+      let snowman = Snowman(message.id, this._assets.font)
+      console.log(snowman)
+      this.scene.add(snowman)
 
-      //let playerSphereBody = cannonContext.createPlayerSphere()
-      
-      //cannonContext.world.addBody(playerSphereBody)
-      //this.data[message.id].body = playerSphereBody
+      let playerSphereBody = this.physics.createPlayerSphere.apply(this)
+
+      this.data[message.id].mesh = snowman      
+      this.data[message.id].body = playerSphereBody
     } 
 
     this.data[message.id].latency = getUnixTime() - cached.timestamp
@@ -227,26 +226,23 @@ World.prototype.createHalo = function() {
   return this;
 }
 
-World.prototype.createAvatar = async function() {
-  let font = await loadFont()
-  let avatarId = uuid()
-  let avatar = Snowman(avatarId, font)
+World.prototype.createAvatar = function() {
+  let avatar = Snowman(
+    uuid(), 
+    this._assets.font
+  )
+  let uid = avatar.userData.id;
 
-  this.data[avatar.name] = {}
-  this.data[avatar.name].mesh = avatar;
-  this.data[avatar.name].didSpawn = false;
-  this.data[avatar.name].id = avatar.name
-  this.data[avatar.name].timestamp = new Date().getTime() / 1000
+  this.data[uid] = {}
+  this.data[uid].mesh = avatar;
+  this.data[uid].didSpawn = false;
+  this.data[uid].id = avatar.name
+  this.data[uid].timestamp = new Date().getTime() / 1000
  
-  this.scene.add(this.data[avatar.name].mesh)
-  this.avatar = this.data[avatar.name].mesh;
+  this.scene.add(this.data[uid].mesh)
+  this.avatar = this.data[uid].mesh;
   this.scene.updateMatrixWorld()
-  this.avatar = avatar;
-
   this.physics.init.apply(this)
-
-
-  this.data[avatar.name].body = this.playerSphereBody;
   return this;
 }
 
@@ -259,15 +255,13 @@ declare global {
   }
 }
 
+
 let world = new World()
 
 console.log(world)
 
-world.createMap().then(() => {
-  world.light()
-    .createAvatar().then(() => {
-      world.init()
-    })
+world.create().then(() => {
+  world.light().createAvatar().init()
 })
 
 export default World;

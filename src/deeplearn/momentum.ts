@@ -150,7 +150,6 @@ function Momentum(params = {}) {
       if(ctx.body.forces.length > 0) {
         ctx.frame++
         requestAnimationFrame(step)
-        console.log(ctx)
         ctx.setPosition()
       } else {
         ctx.frameRate = ctx.frame;
