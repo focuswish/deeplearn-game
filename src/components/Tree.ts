@@ -110,7 +110,9 @@ function Tree() {
     ctx.tree.add(createTop().top);
     ctx.tree.name = 'tree'
     ctx.tree.userData.selectable = true;
-    
+    ctx.tree.userData.health = 100;
+    //ctx.tree.geometry.center()
+
     return ctx;
   }
   

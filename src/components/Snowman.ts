@@ -92,6 +92,7 @@ export default function Avatar(id, font) {
   avatar.userData.type = 'player'
   avatar.userData.health = 100;
   avatar.userData.id = id;
+  avatar.userData.selectable = true
   
   avatar.add(bottomSnowman)
   avatar.add(middleSnowman)

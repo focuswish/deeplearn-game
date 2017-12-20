@@ -2,77 +2,77 @@ import * as CANNON from 'cannon'
 import * as THREE from 'three'
 import { sample, flatten, findIndex, has, isEmpty } from 'lodash'
 
-export default function Base(ctx, cannonContext) {
-  let base : any = {}
+export default function Base() {}
 
-  base.store = {}
-  base.cameraViewProjectionMatrix = new THREE.Matrix4();
-  base.frustum = new THREE.Frustum();
-  base.ctx = ctx;
+Base.prototype.init = function(name, respawn) {
+  
+  //Base.apply(this)
+  let { store } = this._base;
+  
+  if(!store[name]) store[name] = {}
+  
+  let cache = store[name]
+  
+  if(!cache.name) cache.name = name;
+  if(!cache.entities) cache.entities = []
+  if(!cache.visibleCount) cache.visibleCount = 0;
+  if(!cache.respawn && respawn) cache.respawn = respawn;
+ 
+  return cache;
+}
 
-  function initCache (name, respawn) {
-    let { store } = base;
-    
-    if(!store[name]) store[name] = {}
-    
-    let cache = store[name]
-    
-    if(!cache.name) cache.name = name;
-    if(!cache.entities) cache.entities = []
-    if(!cache.visibleCount) cache.visibleCount = 0;
-    if(!cache.respawn && respawn) cache.respawn = respawn;
-   
-    return cache;
+
+Base.prototype.getRandomPointOnPerimeter = function() {
+  //Base.apply(this)
+  let avatarPerimeter = this.scene.getObjectByName('snowman/halo', true);
+
+  if(!avatarPerimeter) {
+    return new THREE.Vector3(0, 0, 1)
   }
 
-  function getDistanceFromAvatar(position) {
-    let snowmanPosition = ctx.avatar.position;
-    let distance = snowmanPosition.distanceTo(position)
-    return distance;
-  }
+  let pointOnPerimeter = sample(avatarPerimeter.geometry.vertices).clone()
+  let vector = avatarPerimeter
+    .getWorldPosition()
+    .add(pointOnPerimeter)
+    .add(new THREE.Vector3(0, 0, -0.2))
 
-  base.getDistanceFromAvatar = getDistanceFromAvatar
+  return vector
+}
 
-  base.getRandomPointOnPerimeter = () => {
-    let avatarPerimeter = ctx.scene.getObjectByName('snowman/halo', true);
+Base.prototype.register = function(
+  mesh, 
+  body, 
+  name = null, 
+  respawn = null, 
+  copyQuaternion = true
+) {
+    //Base.apply(this)
+    console.log(this.base)
 
-    if(!avatarPerimeter) {
-      return new THREE.Vector3(0, 0, 1)
-    }
-
-    let pointOnPerimeter = sample(avatarPerimeter.geometry.vertices).clone()
-    let vector = avatarPerimeter
-      .getWorldPosition()
-      .add(pointOnPerimeter)
-      .add(new THREE.Vector3(0, 0, -0.2))
-
-    return vector
-  }
-
-  base.register = (mesh, body, name = null, respawn = null, copyQuaternion = true) => {
-    let { store } = base;
+    let { store } = this._base;
     
     // add to THREE
-    ctx.scene.add(mesh)
+    this.scene.add(mesh)
 
     // add to CANNON
-    if(body) cannonContext.world.addBody(body)
+    if(body) this.world.addBody(body)
 
     if(!name) return store;
     
-    let cache = initCache(name, respawn)
+    let cache = this.base.init.apply(this, [name, respawn])
 
     cache.entities.push({body, mesh, name, copyQuaternion})
+    console.log(cache)
+    return this;
+}
 
-    return store;
-  }
+Base.prototype.registerMesh = function(mesh) {
+  
+  this.scene.add(mesh)
+}
 
-  base.registerMesh = (mesh) => {
-    ctx.scene.add(mesh)
-  }
-
-  base.removeMesh = (mesh) => {
-    function removeAssociatedObjects(child) {
+Base.prototype.removeMesh = function (mesh) {
+  function removeAssociatedObjects(child) {
       if(child.geometry) child.geometry.dispose()
       
       if(child.material) {
@@ -89,178 +89,186 @@ export default function Base(ctx, cannonContext) {
       })
     }
 
-    removeAssociatedObjects(mesh)
-    ctx.scene.remove(mesh)
-    return
-  }
-
-  base.remove = (entity) => {
-    console.log('Removing:', entity)
-    let cache = base.store[entity.name];
-
-    let { mesh, body } = entity;
-
-    base.removeMesh(mesh)
-
-    if(body) cannonContext.world.remove(body)
-    
-    let index = findIndex(cache.entities, entity)
-    if(index > -1) {
-      cache.entities.splice(index, 1)
-    }
-  }
+  removeAssociatedObjects(mesh)
+  this.scene.remove(mesh)
   
-  base.removeMeshesByName = (name) => {
+  return this;
+}
 
-    let cache = base.store[name]
+Base.prototype.remove = function (entity) {
+  //Base.apply(this)
+  let cache = this._base.store[entity.name];
+
+  let { mesh, body } = entity;
+
+  this.base.removeMesh.apply(this, [mesh])
+
+  if(body) this.world.remove(body)
     
-    if(!cache) return base;
-
-    let { entities } = cache;
-
-    entities.forEach((entity, i) => { 
-      base.remove(entity)
-    })
-
-    cache.visibleCount = 0;
-    cache.entities = []
-
-    return base;
+  let index = findIndex(cache.entities, entity)
+  if(index > -1) {
+    cache.entities.splice(index, 1)
   }
+}
+  
+Base.prototype.removeMeshesByName = function(name) {
+  //Base.apply(this)
+  let cache = this._base.store[name]
+  
+  if(!cache) return
 
-  base.sync = (name) => {
-    if(!base.store[name]) return base
+  let { entities } = cache;
 
-    let { entities } = base.store[name];
+  entities.forEach((entity, i) => { 
+    this.base.remove.apply(this, [entity])
+  })
+
+  cache.visibleCount = 0;
+  cache.entities = []
+
+  return this;
+}
+
+Base.prototype.sync = function (name) {
+  //Base.apply(this)
+  if(!this._base.store[name]) return this;
+
+  let { entities } = this._base.store[name];
     
-    entities.forEach((entity, i) => {
-      if(entity.body) {
-        entity.mesh.position.copy(entity.body.position)
-        if(entity.copyQuaternion) entity.mesh.quaternion.copy(entity.body.quaternion)
+  entities.forEach((entity, i) => {
+    if(entity.body) {
+      entity.mesh.position.copy(entity.body.position)
+      if(entity.copyQuaternion) entity.mesh.quaternion.copy(entity.body.quaternion)
+    }
+  })
+
+  return this;
+}
+
+Base.prototype.get = (name) => {
+  //Base.apply(this)
+  if(!this._base.store[name]) return []
+
+  return this._base.store[name];
+}
+
+Base.prototype.getNearby = function () {
+  //Base.apply(this)
+  return this._base.nearby
+}
+
+
+Base.prototype.getEntityById = function (id) {
+  //Base.apply(this)
+  let needle;
+
+  Object.keys(this._base.store).forEach(key => {
+    let entities = this._base.store[key].entities;
+    Object.keys(entities).forEach(key => {
+      if(entities[key].mesh.name === id) {
+        needle = entities[key];
       }
     })
+  })
+    
+  return needle;
+}
 
-    return base;
-  }
+Base.prototype.getNearbyObjects = function () {
+  //Base.apply(this)
+  let objects = this.scene.children
+    .filter(child => 
+      child.userData && child.userData.selectable
+    ).map(object => ({
+      object, 
+      distance: this.avatar.position.distanceTo(object.position)
+    }))
+    .sort((a, b) => a.distance - b.distance)
 
-  base.get = (name) => {
-    if(!base.store[name]) return []
+  this._base.nearby = objects;
 
-    return base.store[name];
-  }
+  return this;
+}
 
+Base.prototype.cullDistantObjects = function () {
+  //Base.apply(this)
 
-  base.getEntityById = (id) => {
-    let needle;
+  let farAway = this._base.nearby.reverse()
 
-    Object.keys(base.store).forEach(key => {
-      let entities = base.store[key].entities;
-      Object.keys(entities).forEach(key => {
-        if(entities[key].mesh.name === id) {
-          needle = entities[key];
+  farAway.slice(0, 10).forEach(entity => {
+    this.base.remove(this, [entity])
+  })
+}
+
+Base.prototype.tick = function () {
+  //Base.apply(this)
+  let { store, frustum } = this._base;
+    
+  setTimeout(() => {
+    this.base.getNearbyObjects.apply(this)
+
+    let player = this.playerSphereBody;
+    let key = this.avatar.name;
+
+    let wsData = {
+      position: this.data[key].body.position,
+      velocity: this.data[key].body.velocity,
+      didSpawn: this.data[key].didSpawn,
+      id: this.data[key].id,
+      timestamp: new Date().getTime() / 1000,
+      type: 'player'
+    }
+    
+    this.ws.send(JSON.stringify(wsData))
+
+    if(Object.keys(store).length > 0) {
+      Object.keys(store).forEach(key => {
+        let cache = store[key]
+
+        let intersects = cache.entities.map(entity => {
+          return frustum.intersectsObject(entity.mesh.type === 'Mesh' ? 
+            entity.mesh : entity.mesh.children[0]
+          )
+        }).filter(visible => visible)
+          
+        let visibleCount = intersects.length;
+        store[key].visibleCount = visibleCount;
+          
+        if(cache.entities.length > 100) {
+          //base.cullDistantObjects(cache.entities)
+        }
+          
+        if(visibleCount < 1) {    
+          if(cache.respawn) {
+            if(cache.entities.length > 100) this.removeMeshesByName(key)
+            cache.respawn()
+          }
         }
       })
-    })
-    
-    return needle;
-  }
-
-  base.getNearbyObjects = () => {
-    let objects = ctx.scene.children
-      .filter(child => 
-        child.userData && child.userData.selectable
-      ).map(object => ({
-        object, 
-        distance: base.getDistanceFromAvatar(object.position)
-      }))
-      .sort((a, b) => a.distance - b.distance)
-
-    base.nearby = objects;
-  }
-
-  base.cullDistantObjects = () => {
-
-    let farAway = base.nearby.reverse()
-
-    farAway.slice(0, 10).forEach(entity => {
-       base.remove(entity)
-    })
-  }
-  
-  base.tick = () => {
-    let { store, frustum } = base;
-    
-    setTimeout(() => {
-      base.getNearbyObjects()
-
-      let player = cannonContext.playerSphereBody;
-      let key = ctx.avatar.name;
-
-      let wsData = {
-        position: ctx.data[key].body.position,
-        velocity: ctx.data[key].body.velocity,
-        didSpawn: ctx.data[key].didSpawn,
-        id: ctx.data[key].id,
-        timestamp: new Date().getTime() / 1000,
-        type: 'player'
-      }
-      ctx.ws.send(JSON.stringify(wsData))
-
-      if(Object.keys(store).length > 0) {
-        Object.keys(store).forEach(key => {
-          let cache = store[key]
-
-          let intersects = cache.entities.map(entity => {
-            return frustum.intersectsObject(entity.mesh.type === 'Mesh' ? 
-              entity.mesh : entity.mesh.children[0]
-            )
-          }).filter(visible => visible)
-          
-          let visibleCount = intersects.length;
-          store[key].visibleCount = visibleCount;
-          
-          if(cache.entities.length > 100) {
-            //base.cullDistantObjects(cache.entities)
-          }
-          
-          if(visibleCount < 1) {    
-            if(cache.respawn) {
-              if(cache.entities.length > 100) base.removeMeshesByName(key)
-              cache.respawn()
-            }
-          }
-        })
-      }
+    }
       
-      base.tick()
+    this.base.tick.apply(this)
 
     }, 1000)
-  }
+}
 
 
-  base.apply = (ctx) => {
-    base.ctx = ctx;
-
-    return base;
-  }
-
-  base.update = () => {
-    let { 
-      cameraViewProjectionMatrix,
-      frustum 
-    } = base;
-    let { camera } = ctx; 
+Base.prototype.update = function () {
+  //Base.apply(this)
+  let { 
+    cameraViewProjectionMatrix,
+    frustum 
+  } = this._base;
+  
+  let { camera } = this;
     
-    camera.updateMatrixWorld(); // make sure the camera matrix is updated
-    camera.matrixWorldInverse.getInverse( ctx.camera.matrixWorld );
+  camera.updateMatrixWorld(); // make sure the camera matrix is updated
+  camera.matrixWorldInverse.getInverse( this.camera.matrixWorld );
     
-    cameraViewProjectionMatrix.multiplyMatrices( 
-      camera.projectionMatrix, 
-      camera.matrixWorldInverse 
-    );
+  cameraViewProjectionMatrix.multiplyMatrices( 
+    camera.projectionMatrix, 
+    camera.matrixWorldInverse 
+  );
 
-    frustum.setFromMatrix(cameraViewProjectionMatrix);
-  }
-
-  return base;
+  frustum.setFromMatrix(cameraViewProjectionMatrix);
 }

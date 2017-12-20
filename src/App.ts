@@ -16,444 +16,239 @@ import Snowman from './components/Snowman'
 import Tree from './components/Tree';
 import PointerLockControls from './util/PointerLockControls'
 import * as uuid from 'uuid/v4'
-import * as widgets from './Widget'
+import { Widget } from './Widget'
+import { randomArrayInRange } from 'deeplearn/dist/test_util';
+import Helper, {
+  loadFont,
+  getUnixTime,
+  segment,
+  segmentTopography
+} from './util/helpers'
+import Keyboard from './Keyboard'
+import IceLance from './components/IceLance'
+import Context from './Context'
+import Base from './Base'
 
-function segment(matrix, vertices) {  
-  let n = Math.sqrt(vertices.length)
-
-  let offset = (n - 10) / 10;
-  let [x, y] = matrix;
-  
-  x *= offset;
-  y *= offset;
-
-  let rows = chunk(vertices, n)
-
-  let out = flatten(
-    rows
-    .slice(x, x + offset)
-    .map(row => row.slice(y, y + offset))
-  )
-
-  return out
-}
-
-function segmentTopography(topography, matrix) {
-  let offset = Math.sqrt(topography.length - 1) // 10
-
-  let [x, y] = matrix;
-  x *= offset;
-  y *= offset;
-  
-  offset += 1;
-  let out = flatten(
-    topography
-    .slice(y, y + offset)
-    .reverse()
-    .map(row => row.slice(x, x + offset))
-  )
-
-  return out;
-}
-
-async function World() {
-  let ctx : any = {}
-  ctx.worldSize = 100;
-  ctx.tiles = []
-  ctx.terrain = {}
-  ctx.controls = {}
-  ctx.scene = new THREE.Scene()
-  ctx.camera = new THREE.PerspectiveCamera(
-    75, 
-    window.innerWidth / window.innerHeight, 
-    0.1, 
-    1000
-  );  
-  ctx.renderer = new THREE.WebGLRenderer()
-
-  ctx.renderer.setPixelRatio( window.devicePixelRatio );
-  ctx.renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(ctx.renderer.domElement);
-
-  ctx.zoom = 2;
-  ctx.tilt = -4;
-
-  ctx.camera.position.x = 0;
-  ctx.camera.position.y = ctx.tilt;
-  ctx.camera.position.z = ctx.zoom
-  ctx.camera.lookAt(0, 0, 0);
-  ctx.camera.up.set(0, 0, 1);
-  
+function World() {
+  Context.apply(this)
+  //let widget = Object.create(Widget.prototype)
+  //this.ui = widget.UI.apply(this)
   THREE.Object3D.DefaultUp.set(0, 0, 1)
 
+  console.log(this)
+}
 
-  let HOST = location.origin.replace(/^http/, 'ws')
-  ctx.ws = new WebSocket(HOST);
-  ctx.data = {}
+World.prototype.widget = Object.create(Widget.prototype)
+World.prototype.physics = Object.create(Physics.prototype)
+World.prototype.base = Object.create(Base.prototype)
+//World.apply(World.prototype.physics)
+//World.prototype.base.constructor = Base.prototype.constructor;
 
-  function getZ (x, y) {
-    let { terrain: { geometry: { vertices } } } = ctx;
-    
-    let index = findIndex(vertices, { 
-      x: Math.round(x),
-      y: Math.round(y)
-    })
+World.prototype.light = function() {
+  let light = new THREE.HemisphereLight(0xfffafa,0x000000, .7)
+  let sun = new THREE.DirectionalLight( 0xcdc1c5, 0.9);
+  sun.position.set(-10, -10, 10)
+  sun.castShadow = true;
 
-    let z = vertices[index] ? vertices[index].z : 0
+  this.scene.add(light)
+  this.scene.add(sun)
 
-    return z;
-  }
+  return this
+}
 
-  function randomPositionOnTerrain() {
-    let x = Math.round(Math.random() * 100) - 50
-    let y = Math.round(Math.random() * 100) - 50
-    let z = getZ(x, y)
-    return [x, y, z]
-  }
+World.prototype.createMap = async function() {
+  this.terrain.geometry = new THREE.Geometry();    
 
-  ctx.randomPositionOnTerrain = randomPositionOnTerrain
-
-  function light() {
-    let light = new THREE.HemisphereLight(0xfffafa,0x000000, .7)
-    let sun = new THREE.DirectionalLight( 0xcdc1c5, 0.9);
-    sun.position.set(-10, -10, 10)
-    sun.castShadow = true;
-
-    ctx.scene.add(light)
-    ctx.scene.add(sun)
-
-    return ctx;
-  }
-
-  async function createMap() {
-    ctx.terrain.geometry = new THREE.Geometry();    
-    let heightmap = await fetch('/heightmap')
-      .then(resp => resp.json())
-    
-    let terrain = Terrain({
-      position: [0, 0, 0],
-      color: 0x7cfc00,
-      altitude: heightmap
-    })
-
-    ctx.tiles.push(terrain)
-    ctx.scene.add(terrain)
-    ctx.terrain.geometry.vertices = ctx.terrain.geometry.vertices.concat(
-      terrain.geometry.vertices
-    )
-
-    /*for(let i = 0; i < 1; i++) {
-      for(let j = 0; j < 1; j++) {
-        
-        let terrain = Terrain({
-          position: [i * 10, j * 10, 0],
-          color: i < 4 && j < 4 ? 0x7cfc00 : null,
-          altitude: segmentTopography(altitude, [i, j])
-        })
-
-        ctx.tiles.push(terrain)
-
-        ctx.scene.add(terrain)
-
-        ctx.terrain.geometry.vertices = ctx.terrain.geometry.vertices.concat(
-          terrain.geometry.vertices
-        )
-
-      }
-    }*/
-  }
-  ctx.scene.background = new THREE.Color(0x191970)
-  ctx.scene.fog = new THREE.FogExp2( 0x000000, 0.0025 * 50);
-
-  await createMap()
-
-  light()
-
-
-  const loadFont = async () => {
-    let loader = new THREE.FontLoader();
-    return new Promise((resolve, reject) => {
-      loader.load('/fonts/helvetiker.json', font => resolve(font))
-    })
-  }
-
-  let font = await loadFont()
-  let avatarId = uuid()
-  let avatar = Snowman(avatarId, font)
-
-  ctx.data[avatar.name] = {}
-  ctx.data[avatar.name].mesh = avatar;
-  ctx.data[avatar.name].didSpawn = false;
-  ctx.data[avatar.name].id = avatar.name
-  ctx.data[avatar.name].timestamp = new Date().getTime() / 1000
-
-  ctx.scene.add(ctx.data[avatar.name].mesh)
-
-  ctx.avatar = ctx.data[avatar.name].mesh;
-
-  ctx.scene.updateMatrixWorld()
-  ctx.select = widgets.heroSelection(ctx)
+  let heightmap = await fetch('/heightmap')
+    .then(resp => resp.json())
   
-  let cannonContext = Physics(ctx)
+  let terrain = Terrain({
+    position: [0, 0, 0],
+    color: 0x7cfc00,
+    altitude: heightmap
+  })
+
+  this.tiles.push(terrain)
+  this.scene.add(terrain)
+  this.terrain.geometry.vertices = this.terrain.geometry.vertices.concat(
+    terrain.geometry.vertices
+  )
+
+  return this;
+}
+
+World.prototype.onResize = function() {
+  this.camera.aspect = window.innerWidth / window.innerHeight;
+  this.camera.updateProjectionMatrix();
+  this.renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+World.prototype.render = function() {
   
-  let { 
-      world, 
-      base,
-      playerSphereBody,
-  } = cannonContext;
-  ctx.data[avatar.name].body = playerSphereBody;
-
-  // CANNON
-  ctx.world = cannonContext.world;
-  ctx.playerSphereBody = playerSphereBody;
-
-  cannonContext.spawnBoxes()
-  cannonContext.spawnTrees()
-
-  function onWindowResize() {
-    ctx.camera.aspect = window.innerWidth / window.innerHeight;
-    ctx.camera.updateProjectionMatrix();
-    ctx.renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-
   let timeStep = 1/60
-  let fixedTimeStep = 0.5; // seconds
+  let fixedTimeStep = 0.5;
   let maxSubSteps = 3;   
 
-  function lerp(v1, v2, t) {
-    //if(t > 1) t = 1;
+  let start = getUnixTime()
+  let lastUpdated = getUnixTime()
 
-    let target = new THREE.Vector3(
-      v1.x + ((v2.x - v1.x) * t),
-      v1.y + ((v2.y - v1.y) * t),
-      v1.z + ((v2.z - v1.z) * t)
-    )
-
-    return target
+  let helper = {
+    getSelected: Helper.prototype.getSelected.bind(this),
+    randomPositionOnTerrain: Helper.prototype.randomPositionOnTerrain.bind(this),
+    getZ: Helper.prototype.getZ.bind(this)
   }
 
-  const time = () => new Date().getTime() / 1000;
+  let selected = helper.getSelected()
   
-  let start = time()
-  let lastUpdated = time()
+  return () => {
+    var timeSinceLastCall = getUnixTime() - start
+    this.world.step(timeStep, timeSinceLastCall, maxSubSteps);
+    
+    this.base.sync.apply(this, ['snowballs'])
+    this.base.sync.apply(this, ['boxes'])
+    this.base.sync.apply(this, ['icelances'])
+     
+    let players = Object.keys(this.data)
+  
+    if(selected !== helper.getSelected()) {
+      selected = helper.getSelected()
+      let { position: { x, y } } = selected
+      let z = helper.getZ(x, y)
+      this.halo.visible = true;
+      this.halo.position.set(x, y, z)
+    }
+  
+    if(players.length > 0) {
+      players.forEach(key => {
+        let player = this.data[key]        
+        player.mesh.position.copy(player.body.position)
+        player.mesh.children[0].quaternion.copy(player.body.quaternion)
+      })
+    }
+  
+    this.controls.update(timeSinceLastCall)
+    this.base.update.apply(this)
+      
+    start = getUnixTime()
 
+    this.renderer.render(
+      this.scene, this.camera
+    );
+  }
+}
+
+World.prototype.init = function() {
+  let pointerlockchange = (event) => {
+    this.controls.enabled = true;
+  }
+
+  window.addEventListener('resize', this.onWindowResize, false)
+  document.addEventListener( 'pointerlockchange', pointerlockchange, false );
+  document.addEventListener( 'mozpointerlockchange', pointerlockchange, false );
+  document.addEventListener( 'webkitpointerlockchange', pointerlockchange, false );   
+
+  this.controls = new PointerLockControls(
+    this.camera, 
+    this.playerSphereBody, 
+    this.avatar
+  );
+
+  this.scene.add(this.controls.getObject())
+  this.animate()
+  this.base.tick.apply(this)
+  this.getNearby = this.base.getNearby.bind(this);
+
+  Keyboard.prototype.handleKeyDown.apply(this)
+  
+  this.ws.onmessage = (event) => {
+    let message = JSON.parse(event.data)
+
+    if(message.type === 'snowball') {
+      console.log('message',message)
+
+      return
+    }
+
+    if(message.type !== 'player') return
+    if(!this.data[message.id]) this.data[message.id] = {}
+      
+    let cached = this.data[message.id]
+    cached.message = message;
+
+    if(message.id === this.avatar.userData.id) return  
+
+    if(!cached.didSpawn) {
+      //this.data[message.id].didSpawn = true;
+      //let snowman = Snowman(message.id, font)
+      //this.scene.add(snowman)
+      //this.data[message.id].mesh = snowman
+
+      //let playerSphereBody = cannonContext.createPlayerSphere()
+      
+      //cannonContext.world.addBody(playerSphereBody)
+      //this.data[message.id].body = playerSphereBody
+    } 
+
+    this.data[message.id].latency = getUnixTime() - cached.timestamp
+    this.data[message.id].shouldUpdate = true;
+
+    let { position, velocity } = message;
+
+    let nextPosition = new THREE.Vector3(position.x, position.y, position.z)
+    let nextVelocity = new CANNON.Vec3(velocity.x, velocity.y, velocity.z)
+
+    cached.body.position.copy(nextPosition)
+    cached.body.velocity.copy(nextVelocity)
+  };
+}
+
+World.prototype.animate = function() {
+  requestAnimationFrame(this.animate.bind(this))
+  this.camera.position.setZ(
+    this.avatar.position.z + this.zoom
+  )
+  this.render()()
+}
+
+World.prototype.createHalo = function() {
   let halo = new THREE.Mesh(
     new THREE.CircleGeometry(0.5, 32),
     new THREE.MeshBasicMaterial({opacity: 0.5, transparent: true, color: 0x0000ff})
   )
+
   halo.name = 'halo'
   halo.up.set(0,0,1)
   halo.rotateOnAxis(new THREE.Vector3(0,0,1), Math.PI/2)
   halo.visible = false
-  ctx.scene.add(halo)
 
-  const getSelected = () => ctx.avatar.userData.selected ? ctx.scene.getObjectById(ctx.avatar.userData.selected) : null
+  this.halo = halo;
+  this.scene.add(this.halo)
 
-  function updatePhysics() {
-    // Step the physics world
-    var timeSinceLastCall = time() - start
-    ctx.world.step(timeStep, timeSinceLastCall, maxSubSteps);
-    
-    base.sync('snowballs')
-    base.sync('boxes')
-    base.sync('icelances')
-     
-    let players = Object.keys(ctx.data)
-    
-    let selected = getSelected()
-
-    if(halo && selected) {
-      halo.visible = true;
-      halo.position.copy(selected.position)
-    }
-
-    if(players.length > 0) {
-      players.forEach(key => {
-        let player = ctx.data[key]
-        let vec = new CANNON.Vec3().copy(player.mesh.position)
-        
-        //player.mesh.position.copy(player.body.position)
-        //player.mesh.children[0].quaternion.copy(player.body.quaternion)
-
-        if(player.id === avatarId) {
-          
-          player.mesh.position.copy(player.body.position)
-          player.mesh.children[0].quaternion.copy(player.body.quaternion)
-        } else {
-          if(player.shouldUpdate) {
-            ctx.data[key].shouldUpdate = false;
-            lastUpdated = time()
-          }
-
-          let t = (time() - lastUpdated)          
-       
-          player.mesh.position.copy(player.body.position)
-          player.mesh.children[0].quaternion.copy(player.body.quaternion)
-        
-        }
-      })
-    }
-
-    ctx.controls.update(timeSinceLastCall)
-    base.update()
-      
-    start = time()
-  }
-
-  function render() {    
-    updatePhysics()
-    ctx.renderer.render(ctx.scene, ctx.camera);
-  }
-
-  function animate() {
-    requestAnimationFrame(animate);
-
-    let {
-      position: {
-        x, y, z
-      }
-    } = ctx.avatar
-
-    ctx.camera.position.setZ(z + ctx.zoom)
-    render()
-  }
-
-  function init() {
-    window.addEventListener('resize', onWindowResize, false)
-    
-    let pointerlockchange = function ( event ) {
-      ctx.controls.enabled = true;
-    }
-
-    document.addEventListener( 'pointerlockchange', pointerlockchange, false );
-    document.addEventListener( 'mozpointerlockchange', pointerlockchange, false );
-    document.addEventListener( 'webkitpointerlockchange', pointerlockchange, false );   
-
-    ctx.controls = new PointerLockControls(ctx.camera, ctx.playerSphereBody, ctx.avatar);
-  
-    ctx.scene.add(ctx.controls.getObject())
-  
-    animate()
-
-    base = base.apply(ctx)
-    base.tick()
-
-    widgets.healthBar()
-    
-    console.log(ctx)
-    let nearbyIndex = 0;
-
-    window.addEventListener('keydown', function(e) {
-      let position = ctx.playerSphereBody.position.toArray().map(p => Math.round(p))
-      console.log(e)
-      document.getElementById('info').innerHTML = `<span>${position.join(', ')}<span>` ;
-
-      switch(e.code) {
-        case 'Equal':
-          ctx.zoom--
-        break
-      case 'Minus':
-          ctx.zoom++
-        break
-      case 'Backquote':
-        console.log(base.nearby)
-        if(base.nearby) {
-          if(base.nearby.length <= nearbyIndex) {
-            nearbyIndex = 0;
-          }
-
-          let selected = base.nearby[nearbyIndex].object;
-          if(selected) {
-            nearbyIndex++
-            ctx.select(selected)
-          }
-          
-        }
-
-        break;
-      case 'Digit1':
-        console.log(ctx)
-        let target = getSelected()
-        let origin = ctx.avatar.position.clone()
-        console.log(target)
-      
-        cannonContext.createIceLance(uuid(), origin, target.position)
-        break;
-      //case 'Backquote':
-      //  if(ctx.controls.enabled) {
-      //    ctx.controls.enabled = false;
-      //  } else {
-      //    ctx.controls.enabled = true;
-      //  }
-      //  break;
-      }
-    })
-
-    ctx.ws.onmessage = function (event) {
-      let message = JSON.parse(event.data)
-      
-      if(message.type === 'snowball') {
-
-        let snowball = cannonContext.createIceLance(
-          message.id,
-          new THREE.Vector3(
-            message.position.x,
-            message.position.y,
-            message.position.z
-          ),
-          new THREE.Vector3(
-            message.velocity.x,
-            message.velocity.y,
-            message.velocity.z
-          )
-        )
-
-        return
-      }
-
-      if(message.type !== 'player') return
-
-      if(!ctx.data[message.id]) ctx.data[message.id] = {}
-        
-      let cached = ctx.data[message.id]
-      cached.message = message;
-
-      if(message.id === avatarId) return  
-
-      if(!cached.didSpawn) {
-        ctx.data[message.id].didSpawn = true;
-
-        let snowman = Snowman(message.id, font)
-        ctx.scene.add(snowman)
-        ctx.data[message.id].mesh = snowman
-  
-        let playerSphereBody = cannonContext.createPlayerSphere()
-        
-        cannonContext.world.addBody(playerSphereBody)
-        ctx.data[message.id].body = playerSphereBody
-      } 
-
-      ctx.data[message.id].latency = time() - cached.timestamp
-      ctx.data[message.id].shouldUpdate = true;
-
-      let { position, velocity } = message;
-
-      let nextPosition = new THREE.Vector3(position.x, position.y, position.z)
-      let nextVelocity = new CANNON.Vec3(velocity.x, velocity.y, velocity.z)
-      //nextPosition = nextPosition.lerp(nextPosition.clone().add(nextVelocity), 0.2)
-      cached.body.position.copy(nextPosition)
-      cached.body.velocity.copy(nextVelocity)
-
-    };
-  
-    return ctx;
-  }
-  
-  init()
-  return ctx;
+  return this;
 }
 
-window.World = World
+World.prototype.createAvatar = async function() {
+  let font = await loadFont()
+  let avatarId = uuid()
+  let avatar = Snowman(avatarId, font)
+
+  this.data[avatar.name] = {}
+  this.data[avatar.name].mesh = avatar;
+  this.data[avatar.name].didSpawn = false;
+  this.data[avatar.name].id = avatar.name
+  this.data[avatar.name].timestamp = new Date().getTime() / 1000
+ 
+  this.scene.add(this.data[avatar.name].mesh)
+  this.avatar = this.data[avatar.name].mesh;
+  this.scene.updateMatrixWorld()
+  this.avatar = avatar;
+
+  this.physics.init.apply(this)
+
+
+  this.data[avatar.name].body = this.playerSphereBody;
+  return this;
+}
 
 declare global {
   interface Window { 
@@ -461,9 +256,20 @@ declare global {
     Terrain: any;
     Sprite: any;
     World: any;
-    
   }
 }
 
+let world = new World()
 
-let world = World()
+console.log(world)
+
+world.createMap().then(() => {
+  world.light()
+    .createAvatar().then(() => {
+      world.init()
+    })
+})
+
+export default World;
+
+
