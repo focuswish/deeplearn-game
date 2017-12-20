@@ -2,7 +2,7 @@ import * as THREE from 'three'
 
 export default function Context() {
   this.scene = new THREE.Scene()
-  this.scene.background = new THREE.Color(0x191970)
+  //this.scene.background = new THREE.Color(0x191970)
   this.scene.fog = new THREE.FogExp2( 0x000000, 0.0025 * 50);
 
   this.camera = new THREE.PerspectiveCamera(

@@ -18,12 +18,12 @@ IceLance.prototype.emit = function(id, origin, targetMesh) {
   mesh.receiveShadow = true;
   mesh.name = "icelance";
 
-  mesh.position.copy(origin);
+  mesh.position.copy(origin.addScaledVector(direction, 0.1))
   mesh.lookAt(target);
   mesh.rotateX(Math.PI / 2);
 
   mesh.onAfterRender = () => {
-    if (mesh.position.distanceTo(target) < 0.05) {
+    if (mesh.position.distanceTo(target) < 0.1) {
       this.scene.remove(mesh)
 
       targetMesh.userData.health += -10;
@@ -33,6 +33,18 @@ IceLance.prototype.emit = function(id, origin, targetMesh) {
         Widget(this.avatar).untarget()
       } else {
         Widget(this.avatar).update(targetMesh)
+        if(targetMesh.userData.type === 'player') {
+          const { body } = this.data[targetMesh.userData.id];
+          if(body) {
+            body.applyImpulse(
+              new CANNON.Vec3(
+                10,10,10
+              ),
+              body.position
+            )
+          }
+        }
+        
       }
     } else {
       mesh.position.lerp(target, 0.2);

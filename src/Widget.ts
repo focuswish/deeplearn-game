@@ -9,7 +9,8 @@ const healthbar = {
     right: '10px',
     top: '10px',
     width: '200px',
-    backgroundColor: '#fafafa',
+    //backgroundColor: '#fafafa',
+    backgroundImage: 'linear-gradient(0deg, #E6E9F0 0%, #EEF1F5 100%)',
     boxShadow: '0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.3)'
   },
   dataset: {
@@ -50,7 +51,7 @@ const selectedObjectInner = {
   }
 }
 
-function Widget(avatar) {
+function Widget(avatar, gradient) {
   let bar = () => document.getElementById('ui-avatar')
   let div = () => document.getElementById('ui-target')
 
@@ -65,6 +66,7 @@ function Widget(avatar) {
   this.div = div()
   this.bar = bar()
   this.avatar = avatar;
+  this.gradient = gradient;
 }
 
 Widget.prototype.reset = function() {
@@ -102,7 +104,7 @@ Widget.prototype.create = function(props = {}, parent = null) {
   return this;
 }
 
-function meshToDataURL (mesh) {
+function meshToDataURL (mesh, gradient) {
   let camera = new THREE.PerspectiveCamera( 70, 1, 0.01, 10 );
   camera.position.z = 1;
   camera.position.y = -1;
@@ -117,9 +119,12 @@ function meshToDataURL (mesh) {
 
   scene.add(light)
   scene.add(mesh)
-
-  let texture = new THREE.TextureLoader().load(BASE_ASSET_URL + 'gradient.jpg')
-  scene.background = texture;
+  //const loader = new THREE.TextureLoader()
+  //const load = new Promise((resolve, reject) => {
+  //  loader.load(BASE_ASSET_URL + 'gradient.png', (texture) => resolve(texture))
+  //})
+  
+  scene.background = gradient;
 
   let renderer = new THREE.WebGLRenderer({ 
     antialias: true, 
@@ -149,7 +154,7 @@ Widget.prototype.target = function(mesh) {
   if(this.cache[name]) {
     url = this.cache[name];
   } else {
-    url = meshToDataURL(mesh.clone())
+    url = meshToDataURL(mesh.clone(), this.gradient)
     this.cache[name] = url;
   }
       
@@ -184,8 +189,8 @@ Widget.prototype.update = function(mesh) {
   }
 }
 
-export default function(avatar) {
+export default function(avatar, gradient) {
     let widget = Object.create(Widget.prototype)
-    Widget.apply(widget, [avatar])
+    Widget.apply(widget, [avatar, gradient])
     return widget;
 }

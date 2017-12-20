@@ -76790,8 +76790,17 @@ exports.Physics = Physics;
 
 },{"../Widget":15,"../components/Tree":19,"../components/objects":20,"cannon":1,"lodash":2,"three":3}],15:[function(require,module,exports){
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
+const constants_1 = require("./constants");
 const healthbar = {
     id: 'ui-avatar',
     style: {
@@ -76877,53 +76886,60 @@ Widget.prototype.create = function (props = {}, parent = null) {
     return this;
 };
 function meshToDataURL(mesh) {
-    let camera = new THREE.PerspectiveCamera(70, 1, 0.01, 10);
-    camera.position.z = 1;
-    camera.position.y = -1;
-    camera.lookAt(0, 0, 0);
-    camera.up.set(0, 0, 1);
-    let scene = new THREE.Scene();
-    let light = new THREE.HemisphereLight(0xffffff, 0x000000, 0.7);
-    mesh.position.set(0, 0, 0);
-    mesh.scale.set(1.2, 1.2, 1.2);
-    scene.add(light);
-    scene.add(mesh);
-    let renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        preserveDrawingBuffer: true,
-        alpha: true
+    return __awaiter(this, void 0, void 0, function* () {
+        let camera = new THREE.PerspectiveCamera(70, 1, 0.01, 10);
+        camera.position.z = 1;
+        camera.position.y = -1;
+        camera.lookAt(0, 0, 0);
+        camera.up.set(0, 0, 1);
+        let scene = new THREE.Scene();
+        let light = new THREE.HemisphereLight(0xffffff, 0x000000, 0.7);
+        mesh.position.set(0, 0, 0);
+        mesh.scale.set(1.2, 1.2, 1.2);
+        scene.add(light);
+        scene.add(mesh);
+        const loader = new THREE.TextureLoader();
+        const load = new Promise((resolve, reject) => {
+            loader.load(constants_1.BASE_ASSET_URL + 'gradient.png', (texture) => resolve(texture));
+        });
+        scene.background = yield load;
+        let renderer = new THREE.WebGLRenderer({
+            antialias: true,
+            preserveDrawingBuffer: true,
+            alpha: true
+        });
+        renderer.setSize(100, 100);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setClearColor(0x000000, 0.0);
+        //renderer.domElement.style.backgroundImage = 'linear-gradient(0deg, #ACCBEE 0%, #E7F0FD 100%)'
+        renderer.render(scene, camera);
+        let url = renderer.domElement.toDataURL();
+        renderer.forceContextLoss();
+        scene = null;
+        camera = null;
+        return url;
     });
-    //renderer.setClearColor( 0x191970 )
-    renderer.setSize(100, 100);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setClearColor(0x000000, 0.0);
-    renderer.domElement.style.backgroundImage = 'linear-gradient(0deg, #ACCBEE 0%, #E7F0FD 100%)';
-    renderer.render(scene, camera);
-    let url = renderer.domElement.toDataURL();
-    console.log(renderer);
-    renderer.forceContextLoss();
-    scene = null;
-    camera = null;
-    return url;
 }
 Widget.prototype.target = function (mesh) {
-    console.log(this);
-    let { name } = mesh;
-    let url;
-    if (this.cache[name]) {
-        url = this.cache[name];
-    }
-    else {
-        url = meshToDataURL(mesh.clone());
-        this.cache[name] = url;
-    }
-    if (mesh.userData.health) {
-        this.div.childNodes[0].innerHTML = `${mesh.userData.health}/100`;
-    }
-    this.div.style.backgroundImage = `url(${url})`;
-    this.div.style.backgroundSize = 'cover';
-    this.div.style.display = 'block';
-    this.avatar.userData.selected = mesh.id;
+    return __awaiter(this, void 0, void 0, function* () {
+        console.log(this);
+        let { name } = mesh;
+        let url;
+        if (this.cache[name]) {
+            url = this.cache[name];
+        }
+        else {
+            url = yield meshToDataURL(mesh.clone());
+            this.cache[name] = url;
+        }
+        if (mesh.userData.health) {
+            this.div.childNodes[0].innerHTML = `${mesh.userData.health}/100`;
+        }
+        this.div.style.backgroundImage = `url(${url})`;
+        this.div.style.backgroundSize = 'cover';
+        this.div.style.display = 'block';
+        this.avatar.userData.selected = mesh.id;
+    });
 };
 Widget.prototype.untarget = function () {
     let elem1 = document.getElementById('ui-target-health');
@@ -76950,7 +76966,7 @@ function default_1(avatar) {
 }
 exports.default = default_1;
 
-},{"three":3}],16:[function(require,module,exports){
+},{"./constants":21,"three":3}],16:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const CANNON = require("cannon");
@@ -76981,6 +76997,12 @@ IceLance.prototype.emit = function (id, origin, targetMesh) {
             }
             else {
                 Widget_1.default(this.avatar).update(targetMesh);
+                if (targetMesh.userData.type === 'player') {
+                    const { body } = this.data[targetMesh.userData.id];
+                    if (body) {
+                        body.applyImpulse(new CANNON.Vec3(10, 10, 10), body.position);
+                    }
+                }
             }
         }
         else {

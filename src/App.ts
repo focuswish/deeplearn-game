@@ -120,6 +120,8 @@ World.prototype.render = function() {
 }
 
 World.prototype.init = function() {
+  this.scene.background = this._assets.textures['gradient2']
+  
   let pointerlockchange = (event) => {
     this.controls.enabled = true;
   }

@@ -16,17 +16,24 @@ Assets.prototype.loadFonts = async function() {
 
 Assets.prototype.loadTextures = async function() {
   const loader = new THREE.TextureLoader()
-  const promise : any = new Promise((resolve, reject) => {
-    loader.load(BASE_ASSET_URL + 'crate.jpg', texture => resolve(texture))
+  const load : any = (name) => new Promise((resolve, reject) => {
+    loader.load(BASE_ASSET_URL + name, texture => resolve(texture))
   })
 
-  const texture = await promise;
+  const images = ['crate.jpg', 'gradient2.png', 'gradient1.png']
 
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.LinearMipMapLinearFilter;
+  const textures : any = await Promise.all([
+    images.map(image => load(image))
+  ])
 
   this._assets.textures = {}
-  this._assets.textures['box'] = texture;
+
+  textures.forEach((texture, i) => {
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.LinearMipMapLinearFilter;
+    let name = images[i].split('.')[0]
+    this._assets.textures[name] = texture;
+  })
 
   return this;
 }
