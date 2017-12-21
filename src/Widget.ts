@@ -26,6 +26,24 @@ const healthbarInner = {
   }
 }
 
+const abilitiesOuter = {
+  id: 'ui-abilities',
+  style: {
+    position: 'absolute',
+    right: '10px',
+    top: '50px',
+    width: '200px',
+  }
+}
+
+const abilities = [{
+  style: {
+    width: '20px',
+    height: '20px',
+    border: '1px solid #333'
+  }
+}]
+
 const selectedObject = {
   id: 'ui-target',
   style: {
@@ -60,6 +78,7 @@ Widget.prototype.init = function(avatar, gradient) {
 
   if(avatar && !bar()) {
     this.create(healthbar).create(healthbarInner).reset()
+    this.create(abilitiesOuter).create(abilities[0]).reset()
   }
   if(avatar && !div()) {
     this.create(selectedObject).create(selectedObjectInner).reset()
@@ -146,7 +165,6 @@ function meshToDataURL (mesh, gradient) {
 }
 
 Widget.prototype.target = function(mesh) {
-  console.log(this)
   let { name } = mesh;
   let url;
 

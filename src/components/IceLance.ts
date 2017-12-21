@@ -5,7 +5,6 @@ import Widget from '../Widget'
 export default function IceLance() {}
 
 IceLance.prototype.emit = function(id, origin, targetMesh) {
-  console.log(origin)
   let target = targetMesh.position;
   let originVec = new THREE.Vector3(origin.x, origin.y, origin.z)
   let direction = originVec.clone().distanceTo(target)
@@ -19,11 +18,10 @@ IceLance.prototype.emit = function(id, origin, targetMesh) {
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   mesh.name = 'icelance'
+
   let startPosition = originVec.addScaledVector(
     this.camera.getWorldDirection().clone(), 0.3
   )
-
-  console.log(startPosition)
   
   mesh.position.copy(startPosition)
   mesh.lookAt(target)
@@ -33,7 +31,7 @@ IceLance.prototype.emit = function(id, origin, targetMesh) {
     if (mesh.position.distanceTo(target) < 0.1) {
       this.scene.remove(mesh)
 
-      targetMesh.userData.health += -5;
+      targetMesh.userData.health += -10;
 
       if (targetMesh.userData.health < 0) {
 

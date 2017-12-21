@@ -7,11 +7,31 @@ const app = express()
 const server = require('http').createServer(app)
 const WebSocket = require('ws')
 const wss = new WebSocket.Server({ server })
+const crypto = require('crypto')
 
 const PORT = process.env.PORT || 3000;
+const cookie = require('cookie')
+
+app.use(require('cookie-parser')())
+app.use((req, res, next) => {
+  const { token } = req.cookies
+
+  if (!token) {
+    res.cookie(
+      'token',
+      crypto.randomBytes(12).toString('hex'),
+      { maxAge: 1000 * 60 * 60 * 24, httpOnly: false },
+    )
+  }
+
+  next()
+})
 
 app.use('/', express.static('dist'));
 app.use(bodyParser.json())
+
+
+
 
 const { generateTerrain } = require('fractal-terrain-generator')
 
@@ -46,14 +66,20 @@ wss.broadcast = function broadcast(data) {
   });
 };
 
-wss.on('connection', function connection(ws) {
+wss.on('connection', function connection(ws, req) {
+  const { token } = cookie.parse(req.headers.cookie)
+  //sockets[token] = ws
+  console.log('token', token)
   ws.isAlive = true
   ws.on('pong', heartbeat)
   ws.on('message', function incoming(data) {
     // Broadcast to everyone else.
     wss.clients.forEach(function each(client) {
 
-      if (client !== ws && client.readyState === WebSocket.OPEN) {
+      if (
+        client !== ws && 
+        client.readyState === WebSocket.OPEN
+      ) {
         client.send(data);
       }
     });

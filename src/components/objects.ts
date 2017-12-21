@@ -66,7 +66,7 @@ export function Stone(x = 0.5, y = 2, z = 1) {
   return stone;
 }
 
-export function Box() {
+export function Box(texture) {
 
   let dimensions = [0.25, 0.25, 0.25]
   
@@ -76,10 +76,6 @@ export function Box() {
   body.addShape(cannonBoxShape)
 
   // THREE
-  let texture = new THREE.TextureLoader().load(BASE_ASSET_URL + 'crate.jpg')
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.LinearMipMapLinearFilter;
-
   let mesh = new THREE.Mesh(
     new THREE.BoxGeometry(...dimensions.map(d => d * 2)),
     new THREE.MeshLambertMaterial({ 

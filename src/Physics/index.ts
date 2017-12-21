@@ -69,7 +69,7 @@ Physics.prototype.addHeightfield = function() {
   heightfieldBody.position.set(-50, 50, 0)
   heightfieldBody.addShape(heightfieldShape)
   
-  this.world.addBody(heightfieldBody)
+  this.cannon.world.addBody(heightfieldBody)
  
   return heightfieldBody
 }
@@ -84,14 +84,13 @@ Physics.prototype.createPhysicsContactMaterial = function() {
       restitution: 0.3,
   })
     
-  this.world.addContactMaterial(physicsContactMaterial);
+  this.cannon.world.addContactMaterial(physicsContactMaterial);
   
   return physicsContactMaterial
 }
 
 Physics.prototype.createDefaultPhysicsWorld = function() {
-
-  let world = new CANNON.World();
+  let { world } = this.cannon;
   world.allowSleep = true;
   
   world.quatNormalizeSkip = 0;
@@ -113,7 +112,6 @@ Physics.prototype.createDefaultPhysicsWorld = function() {
   world.gravity.set(0,0,-20);
   world.broadphase = new CANNON.NaiveBroadphase();
 
-  this.world = world;
   return this;
 }
 
@@ -126,7 +124,7 @@ Physics.prototype.createPlayerSphere = function () {
   let playerSphereShape = new CANNON.Sphere(boundingSphere.radius)
   let playerSphereBody = new CANNON.Body({ 
     mass: 1, 
-    material: this.physicsMaterial 
+    material: this.cannon.physicsMaterial 
   })
     
   playerSphereBody.addShape(playerSphereShape)
@@ -138,32 +136,25 @@ Physics.prototype.createPlayerSphere = function () {
 
   playerSphereBody.fixedRotation = true;
 
-  this.world.addBody(playerSphereBody)
+  this.cannon.world.addBody(playerSphereBody)
   
   return playerSphereBody;
   
 }
 
 Physics.prototype.spawnBoxes = function() {
-  let getRandomPointOnPerimeter = this.base.getRandomPointOnPerimeter.bind(this)
-  let register = this.base.register.bind(this)
-
   const spawn = () => {
-    let anchor = getRandomPointOnPerimeter()
-    //let worldDirection = ctx.camera.getWorldDirection().clone()  
-    //let offset = worldDirection.clone().normalize().multiplyScalar(5)
-    //let {x,y} = ctx.avatar.position.clone().add(offset)
+    let anchor = this.base.getRandomPointOnPerimeter.apply(this)
     let geometry = new THREE.BoxGeometry(1, 1, 1)
     let { vertices } = geometry;
 
     vertices.forEach(vector => {
       anchor.add(vector)
-      let box = Box()
+      let box = Box(this._assets.textures['crate'])
       
       // CANNON
       box.body.position.copy(anchor)
-
-      register(box.mesh, box.body, 'boxes', spawn)
+      this.base.register.apply(this, [box.mesh, box.body, 'boxes', spawn])
     })
   }
 
@@ -206,7 +197,7 @@ function createSnowball(ctx, cannonContext) {
 }
 
 Physics.prototype.getClickTarget = function(event) {
-  let mouse = new THREE.Vector2();
+  let mouse = new THREE.Vector2()
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1; 
 
@@ -261,26 +252,6 @@ Physics.prototype.init = function() {
     } = this.data[this.avatar.userData.id].body.position;
 
     let intersects = this.physics.getClickTarget.apply(this, [event]);
-    
-    //let icelanceId = uuid()
-    //let origin = new THREE.Vector3()
-    //  .copy(playerSphereBody.position)
-    //  .setComponent(2, playerSphereBody.position.z + 1)
-  
-    //let icelance = cannonContext.createIceLance(
-    //  icelanceId, 
-    //  origin,
-    //  shootDirection.target
-    //)
-  
-    //ctx.ws.send(JSON.stringify({
-    //  position: {x, y, z},
-    //  velocity: icelance.body.velocity,
-    //  id: icelance.mesh.name,
-    //  timestamp: new Date().getTime() / 1000,
-    //  type: 'snowball',
-    //  target: shootDirection.target
-    //}))
   })
 
   return this.physics;

@@ -16,24 +16,20 @@ import Snowman from './components/Snowman'
 import Tree from './components/Tree';
 import PointerLockControls from './util/PointerLockControls'
 import * as uuid from 'uuid/v4'
-import Widget from './Widget'
 import { randomArrayInRange } from 'deeplearn/dist/test_util';
-import Helper, {
-  loadFont,
+import {
   getUnixTime,
   segment,
   segmentTopography
 } from './util/helpers'
 import Keyboard from './Keyboard'
-import IceLance from './components/IceLance'
 import Context from './Context'
 import Base from './Base'
 import Assets from './Assets'
+import * as cookie from 'cookie'
 
 function World() {
   Context.apply(this)
-  THREE.Object3D.DefaultUp.set(0, 0, 1)
-  console.log(this)
 }
 
 World.prototype.assets = Object.create(Assets.prototype)
@@ -56,8 +52,7 @@ World.prototype.intro = async function() {
   let assets = await this.assets.load.apply(this)
 
   let body = document.querySelector('body')
-  body.style.backgroundImage = 'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)'
-  console.log(this)
+  //body.style.backgroundImage = 'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)'
   this.UI.welcomeScreen()
 
   let btn = document.querySelector('button')
@@ -69,8 +64,8 @@ World.prototype.intro = async function() {
       if(input && input.value) {
         this.userName = input.value;
         container.parentElement.removeChild(container);
-        body.style.backgroundImage = ''
-        this.scene.background = this._assets.textures['gradient2']
+        //body.style.backgroundImage = ''
+        //this.scene.background = this._assets.textures['gradient2']
         resolve()
       }
     }
@@ -79,13 +74,13 @@ World.prototype.intro = async function() {
   })
 }
 
-World.prototype.onResize = function() {
+World.prototype.onWindowResize = function() {
   this.camera.aspect = window.innerWidth / window.innerHeight;
   this.camera.updateProjectionMatrix();
   this.renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-World.prototype.render = function() {
+World.prototype.update = function() {
   
   let timeStep = 1/60
   let fixedTimeStep = 0.5;
@@ -93,18 +88,14 @@ World.prototype.render = function() {
 
   let start = getUnixTime()
   let lastUpdated = getUnixTime()
-
-  let helper = {
-    getSelected: Helper.prototype.getSelected.bind(this),
-    randomPositionOnTerrain: Helper.prototype.randomPositionOnTerrain.bind(this),
-    getZ: Helper.prototype.getZ.bind(this)
-  }
-
-  let selected = helper.getSelected()
+  let getHeroTargetMesh = this.base.getHeroTargetMesh.bind(this)
+  let heroTarget = getHeroTargetMesh()
   
   return () => {
-    var timeSinceLastCall = getUnixTime() - start
-    this.world.step(timeStep, timeSinceLastCall, maxSubSteps);
+    let _heroTarget = getHeroTargetMesh()
+    let timeSinceLastCall = getUnixTime() - start
+
+    this.cannon.world.step(timeStep, timeSinceLastCall, maxSubSteps);
     
     this.base.sync.apply(this, ['snowballs'])
     this.base.sync.apply(this, ['boxes'])
@@ -112,10 +103,15 @@ World.prototype.render = function() {
      
     let players = Object.keys(this.data)
   
-    if(selected !== helper.getSelected()) {
-      selected = helper.getSelected()
-      let { position: { x, y } } = selected
-      let z = helper.getZ(x, y)
+    if(
+      _heroTarget &&
+      _heroTarget.position && 
+      heroTarget !== _heroTarget     
+    ) {
+      console.log(_heroTarget)
+      heroTarget = _heroTarget;
+      let { position: { x, y } } = heroTarget
+      let z = this.base.getZ.apply(this, [x, y])
       this.halo.visible = true;
       this.halo.position.set(x, y, z)
     }
@@ -130,12 +126,17 @@ World.prototype.render = function() {
   
     this.controls.update(timeSinceLastCall)
     this.base.update.apply(this)
-      
-    start = getUnixTime()
-
+    
     this.renderer.render(
       this.scene, this.camera
     );
+
+    if((getUnixTime() - lastUpdated) > 0.5) {
+      this.base.tick.apply(this)
+      lastUpdated = getUnixTime()      
+    }
+
+    start = getUnixTime()
   }
 }
 
@@ -144,7 +145,7 @@ World.prototype.init = function() {
   let pointerlockchange = (event) => {
     this.controls.enabled = true;
   }
-
+  
   window.addEventListener('resize', this.onWindowResize, false)
   document.addEventListener( 'pointerlockchange', pointerlockchange, false );
   document.addEventListener( 'mozpointerlockchange', pointerlockchange, false );
@@ -157,62 +158,13 @@ World.prototype.init = function() {
   );
 
   this.scene.add(this.controls.getObject())
+  this.render = this.update()
   this.createHalo()
   this.animate()
 
-  this.base.tick.apply(this)
-
-  Keyboard.prototype.handleKeyDown.apply(this)
-
-  this.ws.onmessage = (event) => {
-    let message = JSON.parse(event.data)
-
-    if(message.type === 'icelance') {      
-      let target = this.data[message.target]
-
-      if(target && target.mesh) {
-        let {x, y, z} = message.origin
-        
-        IceLance.prototype.emit.apply(this, [
-          uuid(), 
-          new THREE.Vector3(x, y, z), 
-          target.mesh
-        ])      
-      }
-      return
-    }
-
-    if(message.type !== 'player') return
-    if(!this.data[message.id]) this.data[message.id] = {}
-      
-    let cached = this.data[message.id]
-    cached.message = message;
-
-    if(message.id === this.avatar.userData.id) return  
-
-    if(!cached.didSpawn) {
-      this.data[message.id].didSpawn = true;
-      let snowman = Snowman(message.id, message.userName, this._assets.font)
-      console.log(snowman)
-      this.scene.add(snowman)
-
-      let playerSphereBody = this.physics.createPlayerSphere.apply(this)
-
-      this.data[message.id].mesh = snowman      
-      this.data[message.id].body = playerSphereBody
-    } 
-
-    this.data[message.id].latency = getUnixTime() - cached.timestamp
-    this.data[message.id].shouldUpdate = true;
-
-    let { position, velocity } = message;
-
-    let nextPosition = new THREE.Vector3(position.x, position.y, position.z)
-    let nextVelocity = new CANNON.Vec3(velocity.x, velocity.y, velocity.z)
-
-    cached.body.position.copy(nextPosition)
-    cached.body.velocity.copy(nextVelocity)
-  };
+  this.keyboard.handleKeyDown.apply(this)
+  this.socket.handleMessage.apply(this)
+ 
 }
 
 World.prototype.animate = function() {
@@ -220,7 +172,7 @@ World.prototype.animate = function() {
   this.camera.position.setZ(
     this.avatar.position.z + this.zoom
   )
-  this.render()()
+  this.render()
 }
 
 World.prototype.createHalo = function() {
@@ -241,12 +193,12 @@ World.prototype.createHalo = function() {
 }
 
 World.prototype.createAvatar = function() {
+  let uid = cookie.parse(document.cookie).token || uuid()
   let avatar = Snowman(
-    uuid(), 
+    uid, 
     this.userName,
     this._assets.font
   )
-  let uid = avatar.userData.id;
 
   this.data[uid] = {}
   this.data[uid].mesh = avatar;
@@ -273,7 +225,6 @@ declare global {
     World: any;
   }
 }
-
 
 let world = new World()
 console.log(world)

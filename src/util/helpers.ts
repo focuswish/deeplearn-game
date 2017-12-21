@@ -5,13 +5,6 @@ import {
 } from 'lodash'
 import * as THREE from 'three'
 
-function Helper() {}
-
-Helper.prototype.getSelected = function() {
-  return this.avatar.userData.selected ? 
-  this.scene.getObjectById(this.avatar.userData.selected) : null
-}
-
 export function getObjectById(ctx) {
   return function(id) {
     ctx.scene.children.find(child => 
@@ -21,35 +14,8 @@ export function getObjectById(ctx) {
   }
 }
 
-Helper.prototype.getZ = function (x, y) {
-  let { terrain: { geometry: { vertices } } } = this;
-    
-  let index = findIndex(vertices, { 
-    x: Math.round(x),
-    y: Math.round(y)
-  })
-
-  let z = vertices[index] ? vertices[index].z : 0
-
-  return z;
-}
-
-Helper.prototype.randomPositionOnTerrain = function() {
-  let x = Math.round(Math.random() * 100) - 50
-  let y = Math.round(Math.random() * 100) - 50
-  let z = Helper.prototype.getZ.apply(this, [x, y])
-  return [x, y, z]
-}
-
-export async function loadFont() {
-  let loader = new THREE.FontLoader();
-  return new Promise((resolve, reject) => {
-    loader.load('/fonts/helvetiker.json', font => resolve(font))
-  })
-}
-
 export function getUnixTime() {
-  return new Date().getTime() / 1000
+  return (new Date()).getTime() / 1000
 }
 
 export function segment(matrix, vertices) {  
@@ -89,6 +55,3 @@ export function segmentTopography(topography, matrix) {
 
   return out;
 }
-
-
-export default Helper

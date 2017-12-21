@@ -8,6 +8,8 @@
   "dependencies": {
     "body-parser": "^1.18.2",
     "cannon": "^0.6.2",
+    "cookie": "^0.3.1",
+    "cookie-parser": "^1.4.3",
     "deeplearn": "~0.3.3",
     "deeplearn-graph-serializer": "^0.3.1",
     "express": "^4.16.2",

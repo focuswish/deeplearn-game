@@ -1,37 +1,47 @@
-export function Sprite(ctx) {
+import * as THREE from 'three'
 
-  function create(mesh, name, id) {
-    mesh.name = name
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.userData = {
-      selectable: true,
-      health: 100,
-      id,
-    }
+export function Sprite (geometry, material) {
+  this.mesh = new THREE.Mesh(
+    geometry, 
+    material
+  )
+}
 
-    //mesh.onAfterRender = update(mesh, {})
+
+Sprite.prototype.create = function(name, id) {
+  this.mesh.name = name
+  this.mesh.castShadow = true;
+  this.mesh.receiveShadow = true;
+
+  this.mesh.userData = {
+    ...this.mesh.userData,
+    selectable: true,
+    health: 100,
+    maxHealth: 100,
+    id,
+    name,
   }
 
-  function update(mesh, data) {
-    mesh.userData = {
-      ...mesh.userData,
-      ...data
-    }
+  return this;
+}
 
-    if(mesh.userData.heatlth && 
-      mesh.userData.health <= 0
-    ) {
-     ctx.scene.remove(mesh) 
-    }
-     
-    let { selected } = ctx.avatar.userData;
-
-    if(selected && 
-      selected === mesh.id
-    ) {
-      //
-
-    }
+Sprite.prototype.update = function(mesh, data) {
+  mesh.userData = {
+    ...mesh.userData,
+    ...data
   }
+
+  if(mesh.userData.heatlth && 
+    mesh.userData.health <= 0
+  ) {
+   //ctx.scene.remove(mesh) 
+  }
+   
+  //let { selected } = ctx.avatar.userData;
+
+  //if(selected && 
+  //  selected === mesh.id
+  //) {
+    //
+
 }

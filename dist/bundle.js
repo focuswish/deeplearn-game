@@ -13689,6 +13689,203 @@ World.prototype.clearForces = function(){
 });
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],2:[function(require,module,exports){
+/*!
+ * cookie
+ * Copyright(c) 2012-2014 Roman Shtylman
+ * Copyright(c) 2015 Douglas Christopher Wilson
+ * MIT Licensed
+ */
+
+'use strict';
+
+/**
+ * Module exports.
+ * @public
+ */
+
+exports.parse = parse;
+exports.serialize = serialize;
+
+/**
+ * Module variables.
+ * @private
+ */
+
+var decode = decodeURIComponent;
+var encode = encodeURIComponent;
+var pairSplitRegExp = /; */;
+
+/**
+ * RegExp to match field-content in RFC 7230 sec 3.2
+ *
+ * field-content = field-vchar [ 1*( SP / HTAB ) field-vchar ]
+ * field-vchar   = VCHAR / obs-text
+ * obs-text      = %x80-FF
+ */
+
+var fieldContentRegExp = /^[\u0009\u0020-\u007e\u0080-\u00ff]+$/;
+
+/**
+ * Parse a cookie header.
+ *
+ * Parse the given cookie header string into an object
+ * The object has the various cookies as keys(names) => values
+ *
+ * @param {string} str
+ * @param {object} [options]
+ * @return {object}
+ * @public
+ */
+
+function parse(str, options) {
+  if (typeof str !== 'string') {
+    throw new TypeError('argument str must be a string');
+  }
+
+  var obj = {}
+  var opt = options || {};
+  var pairs = str.split(pairSplitRegExp);
+  var dec = opt.decode || decode;
+
+  for (var i = 0; i < pairs.length; i++) {
+    var pair = pairs[i];
+    var eq_idx = pair.indexOf('=');
+
+    // skip things that don't look like key=value
+    if (eq_idx < 0) {
+      continue;
+    }
+
+    var key = pair.substr(0, eq_idx).trim()
+    var val = pair.substr(++eq_idx, pair.length).trim();
+
+    // quoted values
+    if ('"' == val[0]) {
+      val = val.slice(1, -1);
+    }
+
+    // only assign once
+    if (undefined == obj[key]) {
+      obj[key] = tryDecode(val, dec);
+    }
+  }
+
+  return obj;
+}
+
+/**
+ * Serialize data into a cookie header.
+ *
+ * Serialize the a name value pair into a cookie string suitable for
+ * http headers. An optional options object specified cookie parameters.
+ *
+ * serialize('foo', 'bar', { httpOnly: true })
+ *   => "foo=bar; httpOnly"
+ *
+ * @param {string} name
+ * @param {string} val
+ * @param {object} [options]
+ * @return {string}
+ * @public
+ */
+
+function serialize(name, val, options) {
+  var opt = options || {};
+  var enc = opt.encode || encode;
+
+  if (typeof enc !== 'function') {
+    throw new TypeError('option encode is invalid');
+  }
+
+  if (!fieldContentRegExp.test(name)) {
+    throw new TypeError('argument name is invalid');
+  }
+
+  var value = enc(val);
+
+  if (value && !fieldContentRegExp.test(value)) {
+    throw new TypeError('argument val is invalid');
+  }
+
+  var str = name + '=' + value;
+
+  if (null != opt.maxAge) {
+    var maxAge = opt.maxAge - 0;
+    if (isNaN(maxAge)) throw new Error('maxAge should be a Number');
+    str += '; Max-Age=' + Math.floor(maxAge);
+  }
+
+  if (opt.domain) {
+    if (!fieldContentRegExp.test(opt.domain)) {
+      throw new TypeError('option domain is invalid');
+    }
+
+    str += '; Domain=' + opt.domain;
+  }
+
+  if (opt.path) {
+    if (!fieldContentRegExp.test(opt.path)) {
+      throw new TypeError('option path is invalid');
+    }
+
+    str += '; Path=' + opt.path;
+  }
+
+  if (opt.expires) {
+    if (typeof opt.expires.toUTCString !== 'function') {
+      throw new TypeError('option expires is invalid');
+    }
+
+    str += '; Expires=' + opt.expires.toUTCString();
+  }
+
+  if (opt.httpOnly) {
+    str += '; HttpOnly';
+  }
+
+  if (opt.secure) {
+    str += '; Secure';
+  }
+
+  if (opt.sameSite) {
+    var sameSite = typeof opt.sameSite === 'string'
+      ? opt.sameSite.toLowerCase() : opt.sameSite;
+
+    switch (sameSite) {
+      case true:
+        str += '; SameSite=Strict';
+        break;
+      case 'lax':
+        str += '; SameSite=Lax';
+        break;
+      case 'strict':
+        str += '; SameSite=Strict';
+        break;
+      default:
+        throw new TypeError('option sameSite is invalid');
+    }
+  }
+
+  return str;
+}
+
+/**
+ * Try decoding a string using a decoding function.
+ *
+ * @param {string} str
+ * @param {function} decode
+ * @private
+ */
+
+function tryDecode(str, decode) {
+  try {
+    return decode(str);
+  } catch (e) {
+    return str;
+  }
+}
+
+},{}],3:[function(require,module,exports){
 (function (global){
 /**
  * @license
@@ -30776,7 +30973,7 @@ World.prototype.clearForces = function(){
 }.call(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],3:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
 	typeof define === 'function' && define.amd ? define(['exports'], factory) :
@@ -75841,7 +76038,7 @@ World.prototype.clearForces = function(){
 
 })));
 
-},{}],4:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 var v1 = require('./v1');
 var v4 = require('./v4');
 
@@ -75851,7 +76048,7 @@ uuid.v4 = v4;
 
 module.exports = uuid;
 
-},{"./v1":7,"./v4":8}],5:[function(require,module,exports){
+},{"./v1":8,"./v4":9}],6:[function(require,module,exports){
 /**
  * Convert array of 16 byte values to UUID string format of the form:
  * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
@@ -75876,7 +76073,7 @@ function bytesToUuid(buf, offset) {
 
 module.exports = bytesToUuid;
 
-},{}],6:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 (function (global){
 // Unique ID creation requires a high quality random # generator.  In the
 // browser this is a little complicated due to unknown quality of Math.random()
@@ -75913,7 +76110,7 @@ if (!rng) {
 module.exports = rng;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],7:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 var rng = require('./lib/rng');
 var bytesToUuid = require('./lib/bytesToUuid');
 
@@ -76015,7 +76212,7 @@ function v1(options, buf, offset) {
 
 module.exports = v1;
 
-},{"./lib/bytesToUuid":5,"./lib/rng":6}],8:[function(require,module,exports){
+},{"./lib/bytesToUuid":6,"./lib/rng":7}],9:[function(require,module,exports){
 var rng = require('./lib/rng');
 var bytesToUuid = require('./lib/bytesToUuid');
 
@@ -76046,7 +76243,7 @@ function v4(options, buf, offset) {
 
 module.exports = v4;
 
-},{"./lib/bytesToUuid":5,"./lib/rng":6}],9:[function(require,module,exports){
+},{"./lib/bytesToUuid":6,"./lib/rng":7}],10:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -76059,21 +76256,17 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 //scene and camera setup
 const THREE = require("three");
-const CANNON = require("cannon");
 const Physics_1 = require("./Physics");
 const Snowman_1 = require("./components/Snowman");
 const PointerLockControls_1 = require("./util/PointerLockControls");
 const uuid = require("uuid/v4");
 const helpers_1 = require("./util/helpers");
-const Keyboard_1 = require("./Keyboard");
-const IceLance_1 = require("./components/IceLance");
 const Context_1 = require("./Context");
 const Base_1 = require("./Base");
 const Assets_1 = require("./Assets");
+const cookie = require("cookie");
 function World() {
     Context_1.default.apply(this);
-    THREE.Object3D.DefaultUp.set(0, 0, 1);
-    console.log(this);
 }
 World.prototype.assets = Object.create(Assets_1.default.prototype);
 World.prototype.physics = Object.create(Physics_1.Physics.prototype);
@@ -76091,8 +76284,7 @@ World.prototype.intro = function () {
     return __awaiter(this, void 0, void 0, function* () {
         let assets = yield this.assets.load.apply(this);
         let body = document.querySelector('body');
-        body.style.backgroundImage = 'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)';
-        console.log(this);
+        //body.style.backgroundImage = 'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)'
         this.UI.welcomeScreen();
         let btn = document.querySelector('button');
         let input = document.querySelector('input');
@@ -76102,8 +76294,8 @@ World.prototype.intro = function () {
                 if (input && input.value) {
                     this.userName = input.value;
                     container.parentElement.removeChild(container);
-                    body.style.backgroundImage = '';
-                    this.scene.background = this._assets.textures['gradient2'];
+                    //body.style.backgroundImage = ''
+                    //this.scene.background = this._assets.textures['gradient2']
                     resolve();
                 }
             };
@@ -76111,34 +76303,32 @@ World.prototype.intro = function () {
         });
     });
 };
-World.prototype.onResize = function () {
+World.prototype.onWindowResize = function () {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 };
-World.prototype.render = function () {
+World.prototype.update = function () {
     let timeStep = 1 / 60;
     let fixedTimeStep = 0.5;
     let maxSubSteps = 3;
     let start = helpers_1.getUnixTime();
     let lastUpdated = helpers_1.getUnixTime();
-    let helper = {
-        getSelected: helpers_1.default.prototype.getSelected.bind(this),
-        randomPositionOnTerrain: helpers_1.default.prototype.randomPositionOnTerrain.bind(this),
-        getZ: helpers_1.default.prototype.getZ.bind(this)
-    };
-    let selected = helper.getSelected();
+    let getHeroTargetMesh = this.base.getHeroTargetMesh.bind(this);
+    let heroTarget = getHeroTargetMesh();
     return () => {
-        var timeSinceLastCall = helpers_1.getUnixTime() - start;
-        this.world.step(timeStep, timeSinceLastCall, maxSubSteps);
+        let _heroTarget = getHeroTargetMesh();
+        let timeSinceLastCall = helpers_1.getUnixTime() - start;
+        this.cannon.world.step(timeStep, timeSinceLastCall, maxSubSteps);
         this.base.sync.apply(this, ['snowballs']);
         this.base.sync.apply(this, ['boxes']);
         this.base.sync.apply(this, ['icelances']);
         let players = Object.keys(this.data);
-        if (selected !== helper.getSelected()) {
-            selected = helper.getSelected();
-            let { position: { x, y } } = selected;
-            let z = helper.getZ(x, y);
+        if (heroTarget !== _heroTarget && _heroTarget.position) {
+            console.log(_heroTarget);
+            heroTarget = _heroTarget;
+            let { position: { x, y } } = heroTarget;
+            let z = this.base.getZ.apply(this, [x, y]);
             this.halo.visible = true;
             this.halo.position.set(x, y, z);
         }
@@ -76151,8 +76341,12 @@ World.prototype.render = function () {
         }
         this.controls.update(timeSinceLastCall);
         this.base.update.apply(this);
-        start = helpers_1.getUnixTime();
         this.renderer.render(this.scene, this.camera);
+        if ((helpers_1.getUnixTime() - lastUpdated) > 0.5) {
+            this.base.tick.apply(this);
+            lastUpdated = helpers_1.getUnixTime();
+        }
+        start = helpers_1.getUnixTime();
     };
 };
 World.prototype.init = function () {
@@ -76165,54 +76359,16 @@ World.prototype.init = function () {
     document.addEventListener('webkitpointerlockchange', pointerlockchange, false);
     this.controls = new PointerLockControls_1.default(this.camera, this.data[this.avatar.userData.id].body, this.avatar);
     this.scene.add(this.controls.getObject());
+    this.render = this.update();
     this.createHalo();
     this.animate();
-    this.base.tick.apply(this);
-    Keyboard_1.default.prototype.handleKeyDown.apply(this);
-    this.ws.onmessage = (event) => {
-        let message = JSON.parse(event.data);
-        if (message.type === 'icelance') {
-            let target = this.data[message.target];
-            if (target && target.mesh) {
-                let { x, y, z } = message.origin;
-                IceLance_1.default.prototype.emit.apply(this, [
-                    uuid(),
-                    new THREE.Vector3(x, y, z),
-                    target.mesh
-                ]);
-            }
-            return;
-        }
-        if (message.type !== 'player')
-            return;
-        if (!this.data[message.id])
-            this.data[message.id] = {};
-        let cached = this.data[message.id];
-        cached.message = message;
-        if (message.id === this.avatar.userData.id)
-            return;
-        if (!cached.didSpawn) {
-            this.data[message.id].didSpawn = true;
-            let snowman = Snowman_1.default(message.id, message.userName, this._assets.font);
-            console.log(snowman);
-            this.scene.add(snowman);
-            let playerSphereBody = this.physics.createPlayerSphere.apply(this);
-            this.data[message.id].mesh = snowman;
-            this.data[message.id].body = playerSphereBody;
-        }
-        this.data[message.id].latency = helpers_1.getUnixTime() - cached.timestamp;
-        this.data[message.id].shouldUpdate = true;
-        let { position, velocity } = message;
-        let nextPosition = new THREE.Vector3(position.x, position.y, position.z);
-        let nextVelocity = new CANNON.Vec3(velocity.x, velocity.y, velocity.z);
-        cached.body.position.copy(nextPosition);
-        cached.body.velocity.copy(nextVelocity);
-    };
+    this.keyboard.handleKeyDown.apply(this);
+    this.socket.handleMessage.apply(this);
 };
 World.prototype.animate = function () {
     requestAnimationFrame(this.animate.bind(this));
     this.camera.position.setZ(this.avatar.position.z + this.zoom);
-    this.render()();
+    this.render();
 };
 World.prototype.createHalo = function () {
     let halo = new THREE.Mesh(new THREE.CircleGeometry(0.5, 32), new THREE.MeshBasicMaterial({ opacity: 0.5, transparent: true, color: 0x0000ff }));
@@ -76225,8 +76381,8 @@ World.prototype.createHalo = function () {
     return this;
 };
 World.prototype.createAvatar = function () {
-    let avatar = Snowman_1.default(uuid(), this.userName, this._assets.font);
-    let uid = avatar.userData.id;
+    let uid = cookie.parse(document.cookie).token || uuid();
+    let avatar = Snowman_1.default(uid, this.userName, this._assets.font);
     this.data[uid] = {};
     this.data[uid].mesh = avatar;
     this.data[uid].didSpawn = false;
@@ -76246,7 +76402,7 @@ world.intro().then(() => {
 });
 exports.default = World;
 
-},{"./Assets":10,"./Base":11,"./Context":12,"./Keyboard":13,"./Physics":14,"./components/IceLance":16,"./components/Snowman":17,"./util/PointerLockControls":22,"./util/helpers":23,"cannon":1,"three":3,"uuid/v4":8}],10:[function(require,module,exports){
+},{"./Assets":11,"./Base":12,"./Context":13,"./Physics":15,"./components/Snowman":19,"./util/PointerLockControls":24,"./util/helpers":25,"cookie":2,"three":4,"uuid/v4":9}],11:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -76315,7 +76471,7 @@ Assets.prototype.load = function () {
     ]);
 };
 
-},{"./components/Terrain":18,"./constants":21,"three":3}],11:[function(require,module,exports){
+},{"./components/Terrain":20,"./constants":23,"three":4}],12:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -76356,7 +76512,7 @@ Base.prototype.register = function (mesh, body, name = null, respawn = null, cop
     // add to CANNON
     if (body) {
         mesh.userData.body = body.id;
-        this.world.addBody(body);
+        this.cannon.world.addBody(body);
     }
     if (!name)
         return store;
@@ -76392,7 +76548,7 @@ Base.prototype.remove = function (entity) {
     let { mesh, body } = entity;
     this.base.removeMesh.apply(this, [mesh]);
     if (body)
-        this.world.remove(body);
+        this.cannon.world.remove(body);
     let index = lodash_1.findIndex(cache.entities, entity);
     if (index > -1) {
         cache.entities.splice(index, 1);
@@ -76458,48 +76614,43 @@ Base.prototype.getNearbyObjects = function () {
 Base.prototype.cullDistantObjects = function () {
     let farAway = this._base.nearby.reverse();
     farAway.slice(0, 10).forEach(entity => {
-        this.base.remove(this, [entity]);
+        this.base.remove.apply(this, [entity]);
     });
 };
 Base.prototype.tick = function () {
     let { store, frustum } = this._base;
-    setTimeout(() => {
-        this.base.getNearbyObjects.apply(this);
-        let player = this.playerSphereBody;
-        let key = this.avatar.userData.id;
-        let wsData = {
-            position: this.data[key].body.position,
-            velocity: this.data[key].body.velocity,
-            didSpawn: this.data[key].didSpawn,
-            id: key,
-            timestamp: new Date().getTime() / 1000,
-            type: 'player',
-            userName: this.avatar.userData.name
-        };
-        this.ws.send(JSON.stringify(wsData));
-        if (Object.keys(store).length > 0) {
-            Object.keys(store).forEach(key => {
-                let cache = store[key];
-                let intersects = cache.entities.map(entity => {
-                    return frustum.intersectsObject(entity.mesh.type === 'Mesh' ?
-                        entity.mesh : entity.mesh.children[0]);
-                }).filter(visible => visible);
-                let visibleCount = intersects.length;
-                store[key].visibleCount = visibleCount;
-                if (cache.entities.length > 100) {
-                    //base.cullDistantObjects(cache.entities)
+    this.base.getNearbyObjects.apply(this);
+    let key = this.avatar.userData.id;
+    if (Object.keys(this.data).length > 1) {
+        this.socket.send.apply(this, [{
+                position: this.data[key].body.position,
+                velocity: this.data[key].body.velocity,
+                didSpawn: this.data[key].didSpawn,
+                timestamp: new Date().getTime() / 1000,
+                type: 'player',
+            }]);
+    }
+    if (Object.keys(store).length > 0) {
+        Object.keys(store).forEach(key => {
+            let cache = store[key];
+            let intersects = cache.entities.map(entity => {
+                return frustum.intersectsObject(entity.mesh.type === 'Mesh' ?
+                    entity.mesh : entity.mesh.children[0]);
+            }).filter(visible => visible);
+            let visibleCount = intersects.length;
+            store[key].visibleCount = visibleCount;
+            if (cache.entities.length > 100) {
+                this.base.cullDistantObjects.apply(this, [cache.entities]);
+            }
+            if (visibleCount < 1) {
+                if (cache.respawn) {
+                    if (cache.entities.length > 100)
+                        this.removeMeshesByName(key);
+                    cache.respawn();
                 }
-                if (visibleCount < 1) {
-                    if (cache.respawn) {
-                        if (cache.entities.length > 100)
-                            this.removeMeshesByName(key);
-                        cache.respawn();
-                    }
-                }
-            });
-        }
-        this.base.tick.apply(this);
-    }, 1000);
+            }
+        });
+    }
 };
 Base.prototype.update = function () {
     let { cameraViewProjectionMatrix, frustum } = this._base;
@@ -76521,16 +76672,31 @@ Base.prototype.getEntityByMesh = function (mesh) {
         });
     });
 };
+Base.prototype.getHeroTargetMesh = function () {
+    return this.avatar.userData.selected ? this.scene.getObjectById(this.avatar.userData.selected) : null;
+};
+Base.prototype.getZ = function (x, y) {
+    let { terrain: { geometry: { vertices } } } = this;
+    let index = lodash_1.findIndex(vertices, {
+        x: Math.round(x),
+        y: Math.round(y)
+    });
+    return vertices[index] ? vertices[index].z : 0;
+};
 
-},{"lodash":2,"three":3}],12:[function(require,module,exports){
+},{"lodash":3,"three":4}],13:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
 const Widget_1 = require("./Widget");
+const CANNON = require("cannon");
+const Keyboard_1 = require("./Keyboard");
+const Weapon_1 = require("./Weapon");
+const Socket_1 = require("./Socket");
 function Context() {
     this.scene = new THREE.Scene();
-    //this.scene.background = new THREE.Color(0x191970)
-    this.scene.fog = new THREE.FogExp2(0x000000, 0.0025 * 50);
+    this.scene.background = new THREE.Color(0x191970);
+    this.scene.fog = new THREE.FogExp2(0x000000, 0.0025 * 10);
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.tilt = -4;
     this.zoom = 2;
@@ -76541,52 +76707,44 @@ function Context() {
     this.camera.up.set(0, 0, 1);
     THREE.Object3D.DefaultUp.set(0, 0, 1);
     this.renderer = new THREE.WebGLRenderer();
-    this.ws = new WebSocket(location.origin.replace(/^http/, 'ws'));
-    this.terrain = {};
+    this._socket = {};
+    this._socket.ws = new WebSocket(location.origin.replace(/^http/, 'ws'));
+    this.socket = new Socket_1.default();
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(this.renderer.domElement);
+    this.terrain = {};
     this.data = {};
     this.tiles = [];
     this.controls = {};
-    const base = {
-        store: {},
-        cameraViewProjectionMatrix: new THREE.Matrix4(),
-        frustum: new THREE.Frustum(),
-        nearby: []
-    };
-    this._base = base;
+    this._base = {};
+    this._base.store = {};
+    this._base.cameraViewProjectionMatrix = new THREE.Matrix4();
+    this._base.frustum = new THREE.Frustum();
+    this._base.nearby = [];
     this._assets = {};
     this.UI = Object.create(Widget_1.default.prototype);
-    //Widget.apply(this.UI)
+    this.cannon = {};
+    this.cannon.world = new CANNON.World();
+    this.keyboard = new Keyboard_1.default();
+    this._weapon = {};
+    this._weapon.abilities = {};
+    this._weapon.abilities.icelance = true;
+    this.weapon = new Weapon_1.default();
+    THREE.Object3D.DefaultUp.set(0, 0, 1);
 }
 exports.default = Context;
 
-},{"./Widget":15,"three":3}],13:[function(require,module,exports){
+},{"./Keyboard":14,"./Socket":16,"./Weapon":17,"./Widget":18,"cannon":1,"three":4}],14:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const uuid = require("uuid");
-const IceLance_1 = require("./components/IceLance");
-const helpers_1 = require("./util/helpers");
 function Keyboard() { }
 Keyboard.prototype.handleKeyDown = function () {
     let nearbyIndex = 0;
-    const helpers = Object.create(helpers_1.default.prototype, {
-        avatar: {
-            writable: true,
-            configurable: true,
-            value: this.avatar
-        },
-        scene: {
-            writable: true,
-            configurable: true,
-            value: this.scene
-        }
-    });
     let avatarCanAttack = true;
     const nearby = this.base.getNearby.bind(this);
-    const icelance = new IceLance_1.default();
-    window.addEventListener("keydown", (e) => {
+    window.addEventListener('keydown', (e) => {
         switch (e.code) {
             case "Equal":
                 this.zoom--;
@@ -76613,10 +76771,10 @@ Keyboard.prototype.handleKeyDown = function () {
                 setTimeout(() => {
                     avatarCanAttack = true;
                 }, 500);
-                let target = helpers.getSelected();
+                let target = this.base.getHeroTargetMesh.apply(this);
                 let origin = Object.assign({}, this.avatar.position);
                 if (target) {
-                    icelance.emit.apply(this, [
+                    this.weapon.icelance.apply(this, [
                         uuid(),
                         origin,
                         target
@@ -76624,13 +76782,11 @@ Keyboard.prototype.handleKeyDown = function () {
                     if (target.userData &&
                         target.userData.id &&
                         target.userData.type === 'player') {
-                        this.ws.send(JSON.stringify({
-                            target: target.userData.id,
-                            origin: origin,
-                            timestamp: new Date().getTime() / 1000,
-                            type: "icelance",
-                            userName: this.avatar.userData.name
-                        }));
+                        this.socket.send.apply(this, [{
+                                target: target.userData.id,
+                                origin: origin,
+                                type: "icelance",
+                            }]);
                     }
                 }
                 break;
@@ -76639,7 +76795,7 @@ Keyboard.prototype.handleKeyDown = function () {
 };
 exports.default = Keyboard;
 
-},{"./components/IceLance":16,"./util/helpers":23,"uuid":4}],14:[function(require,module,exports){
+},{"uuid":5}],15:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const CANNON = require("cannon");
@@ -76688,7 +76844,7 @@ Physics.prototype.addHeightfield = function () {
     heightfieldBody.quaternion.setFromAxisAngle(axis, angle);
     heightfieldBody.position.set(-50, 50, 0);
     heightfieldBody.addShape(heightfieldShape);
-    this.world.addBody(heightfieldBody);
+    this.cannon.world.addBody(heightfieldBody);
     return heightfieldBody;
 };
 Physics.prototype.createPhysicsContactMaterial = function () {
@@ -76697,11 +76853,11 @@ Physics.prototype.createPhysicsContactMaterial = function () {
         friction: 1.0,
         restitution: 0.3,
     });
-    this.world.addContactMaterial(physicsContactMaterial);
+    this.cannon.world.addContactMaterial(physicsContactMaterial);
     return physicsContactMaterial;
 };
 Physics.prototype.createDefaultPhysicsWorld = function () {
-    let world = new CANNON.World();
+    let { world } = this.cannon;
     world.allowSleep = true;
     world.quatNormalizeSkip = 0;
     world.quatNormalizeFast = false;
@@ -76717,7 +76873,6 @@ Physics.prototype.createDefaultPhysicsWorld = function () {
         world.solver = solver;
     world.gravity.set(0, 0, -20);
     world.broadphase = new CANNON.NaiveBroadphase();
-    this.world = world;
     return this;
 };
 Physics.prototype.createPlayerSphere = function () {
@@ -76727,7 +76882,7 @@ Physics.prototype.createPlayerSphere = function () {
     let playerSphereShape = new CANNON.Sphere(boundingSphere.radius);
     let playerSphereBody = new CANNON.Body({
         mass: 1,
-        material: this.physicsMaterial
+        material: this.cannon.physicsMaterial
     });
     playerSphereBody.addShape(playerSphereShape);
     playerSphereBody.position.set(0, 0, 5);
@@ -76735,25 +76890,20 @@ Physics.prototype.createPlayerSphere = function () {
     //playerSphereBody.addEventListener('collide', function(evt) {
     //});
     playerSphereBody.fixedRotation = true;
-    this.world.addBody(playerSphereBody);
+    this.cannon.world.addBody(playerSphereBody);
     return playerSphereBody;
 };
 Physics.prototype.spawnBoxes = function () {
-    let getRandomPointOnPerimeter = this.base.getRandomPointOnPerimeter.bind(this);
-    let register = this.base.register.bind(this);
     const spawn = () => {
-        let anchor = getRandomPointOnPerimeter();
-        //let worldDirection = ctx.camera.getWorldDirection().clone()  
-        //let offset = worldDirection.clone().normalize().multiplyScalar(5)
-        //let {x,y} = ctx.avatar.position.clone().add(offset)
+        let anchor = this.base.getRandomPointOnPerimeter.apply(this);
         let geometry = new THREE.BoxGeometry(1, 1, 1);
         let { vertices } = geometry;
         vertices.forEach(vector => {
             anchor.add(vector);
-            let box = objects_1.Box();
+            let box = objects_1.Box(this._assets.textures['crate']);
             // CANNON
             box.body.position.copy(anchor);
-            register(box.mesh, box.body, 'boxes', spawn);
+            this.base.register.apply(this, [box.mesh, box.body, 'boxes', spawn]);
         });
     };
     return spawn();
@@ -76812,30 +76962,129 @@ Physics.prototype.init = function () {
     window.addEventListener('click', (e) => {
         let { x, y, z } = this.data[this.avatar.userData.id].body.position;
         let intersects = this.physics.getClickTarget.apply(this, [event]);
-        //let icelanceId = uuid()
-        //let origin = new THREE.Vector3()
-        //  .copy(playerSphereBody.position)
-        //  .setComponent(2, playerSphereBody.position.z + 1)
-        //let icelance = cannonContext.createIceLance(
-        //  icelanceId, 
-        //  origin,
-        //  shootDirection.target
-        //)
-        //ctx.ws.send(JSON.stringify({
-        //  position: {x, y, z},
-        //  velocity: icelance.body.velocity,
-        //  id: icelance.mesh.name,
-        //  timestamp: new Date().getTime() / 1000,
-        //  type: 'snowball',
-        //  target: shootDirection.target
-        //}))
     });
     return this.physics;
 };
 function Physics() { }
 exports.Physics = Physics;
 
-},{"../components/Tree":19,"../components/objects":20,"cannon":1,"lodash":2,"three":3}],15:[function(require,module,exports){
+},{"../components/Tree":21,"../components/objects":22,"cannon":1,"lodash":3,"three":4}],16:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const THREE = require("three");
+const CANNON = require("cannon");
+const uuid = require("uuid");
+const Snowman_1 = require("./components/Snowman");
+const helpers_1 = require("./util/helpers");
+function Socket() { }
+exports.default = Socket;
+Socket.prototype.send = function (data) {
+    this._socket.ws.send(JSON.stringify(Object.assign({}, data, { userName: this.avatar.userData.name, id: this.avatar.userData.id, timestamp: (new Date()).getTime() / 1000 })));
+};
+Socket.prototype.handleMessage = function () {
+    this._socket.ws.onmessage = (event) => {
+        let message = JSON.parse(event.data);
+        if (message.type === 'icelance') {
+            let target = this.data[message.target];
+            if (target && target.mesh) {
+                let { x, y, z } = message.origin;
+                this.weapon.icelance.apply(this, [
+                    uuid(),
+                    new THREE.Vector3(x, y, z),
+                    target.mesh
+                ]);
+            }
+            return;
+        }
+        if (message.type !== 'player')
+            return;
+        if (!this.data[message.id])
+            this.data[message.id] = {};
+        let cached = this.data[message.id];
+        cached.message = message;
+        if (message.id === this.avatar.userData.id)
+            return;
+        if (!cached.didSpawn) {
+            this.data[message.id].didSpawn = true;
+            let snowman = Snowman_1.default(message.id, message.userName, this._assets.font);
+            this.scene.add(snowman);
+            let playerSphereBody = this.physics.createPlayerSphere.apply(this);
+            this.data[message.id].mesh = snowman;
+            this.data[message.id].body = playerSphereBody;
+        }
+        this.data[message.id].latency = helpers_1.getUnixTime() - cached.timestamp;
+        this.data[message.id].shouldUpdate = true;
+        let { position, velocity } = message;
+        let nextPosition = new THREE.Vector3(position.x, position.y, position.z);
+        let nextVelocity = new CANNON.Vec3(velocity.x, velocity.y, velocity.z);
+        cached.body.position.copy(nextPosition);
+        cached.body.velocity.copy(nextVelocity);
+    };
+};
+
+},{"./components/Snowman":19,"./util/helpers":25,"cannon":1,"three":4,"uuid":5}],17:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const CANNON = require("cannon");
+const THREE = require("three");
+function Weapon() { }
+exports.default = Weapon;
+Weapon.prototype.getParameters = function (originPosition) {
+    let originMeshPosition = new THREE.Vector3(originPosition.x, originPosition.y, originPosition.z);
+    let targetMeshPosition = this._weapon.targetMesh.position;
+    let distanceToTarget = originMeshPosition.clone().distanceTo(targetMeshPosition);
+    let initialWeaponPosition = originMeshPosition.addScaledVector(this.camera.getWorldDirection().clone(), 0.3);
+    Object.assign(this._weapon, {
+        originMeshPosition,
+        targetMeshPosition,
+        distanceToTarget,
+        initialWeaponPosition
+    });
+    return this;
+};
+Weapon.prototype.postRender = function () {
+    let { originMeshPosition, targetMeshPosition, distanceToTarget, initialWeaponPosition, icelance, targetMesh } = this._weapon;
+    if (icelance.position.distanceTo(targetMeshPosition) < 0.1) {
+        this.scene.remove(icelance);
+        targetMesh.userData.health += -10;
+        if (targetMesh.userData.health < 0) {
+            this.scene.remove(targetMesh);
+            this.UI.untarget();
+        }
+        else {
+            this.UI.update(targetMesh);
+            if (targetMesh.userData.body) {
+                const body = this.cannon.world.bodies.find(body => body.id === targetMesh.userData.body);
+                if (body) {
+                    body.applyImpulse(distanceToTarget, body.position);
+                }
+            }
+        }
+    }
+    else {
+        icelance.position.lerp(targetMeshPosition, 0.2);
+    }
+};
+Weapon.prototype.icelance = function (id, originPosition, targetMesh) {
+    this._weapon.targetMesh = targetMesh;
+    let shape = new CANNON.Sphere(0.1);
+    let geometry = new THREE.ConeGeometry(shape.radius, 8 * shape.radius, 32);
+    let material = new THREE.MeshLambertMaterial({ color: 0xa5f2f3 });
+    let icelance = new THREE.Mesh(geometry, material);
+    icelance.castShadow = true;
+    icelance.receiveShadow = true;
+    icelance.name = 'icelance';
+    this.weapon.getParameters.apply(this, [originPosition]);
+    icelance.position.copy(this._weapon.initialWeaponPosition);
+    icelance.lookAt(this._weapon.targetMeshPosition);
+    icelance.rotateX(Math.PI / 2);
+    icelance.onAfterRender = this.weapon.postRender.bind(this);
+    this._weapon.icelance = icelance;
+    this.scene.add(icelance);
+    return { icelance };
+};
+
+},{"cannon":1,"three":4}],18:[function(require,module,exports){
 "use strict";
 var __rest = (this && this.__rest) || function (s, e) {
     var t = {};
@@ -76870,6 +77119,22 @@ const healthbarInner = {
         backgroundImage: 'linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%)'
     }
 };
+const abilitiesOuter = {
+    id: 'ui-abilities',
+    style: {
+        position: 'absolute',
+        right: '10px',
+        top: '50px',
+        width: '200px',
+    }
+};
+const abilities = [{
+        style: {
+            width: '20px',
+            height: '20px',
+            border: '1px solid #333'
+        }
+    }];
 const selectedObject = {
     id: 'ui-target',
     style: {
@@ -76900,6 +77165,7 @@ Widget.prototype.init = function (avatar, gradient) {
     let div = () => document.getElementById('ui-target');
     if (avatar && !bar()) {
         this.create(healthbar).create(healthbarInner).reset();
+        this.create(abilitiesOuter).create(abilities[0]).reset();
     }
     if (avatar && !div()) {
         this.create(selectedObject).create(selectedObjectInner).reset();
@@ -76966,7 +77232,6 @@ function meshToDataURL(mesh, gradient) {
     return url;
 }
 Widget.prototype.target = function (mesh) {
-    console.log(this);
     let { name } = mesh;
     let url;
     if (this.cache[name]) {
@@ -77044,57 +77309,7 @@ Widget.prototype.welcomeScreen = function (onclick) {
 //    return widget;
 //} 
 
-},{"three":3}],16:[function(require,module,exports){
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const CANNON = require("cannon");
-const THREE = require("three");
-function IceLance() { }
-exports.default = IceLance;
-IceLance.prototype.emit = function (id, origin, targetMesh) {
-    console.log(origin);
-    let target = targetMesh.position;
-    let originVec = new THREE.Vector3(origin.x, origin.y, origin.z);
-    let direction = originVec.clone().distanceTo(target);
-    let shape = new CANNON.Sphere(0.1);
-    let geometry = new THREE.ConeGeometry(shape.radius, 8 * shape.radius, 32);
-    let material = new THREE.MeshLambertMaterial({ color: 0xa5f2f3 });
-    let mesh = new THREE.Mesh(geometry, material);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.name = 'icelance';
-    let startPosition = originVec.addScaledVector(this.camera.getWorldDirection().clone(), 0.3);
-    console.log(startPosition);
-    mesh.position.copy(startPosition);
-    mesh.lookAt(target);
-    mesh.rotateX(Math.PI / 2);
-    mesh.onAfterRender = () => {
-        if (mesh.position.distanceTo(target) < 0.1) {
-            this.scene.remove(mesh);
-            targetMesh.userData.health += -5;
-            if (targetMesh.userData.health < 0) {
-                this.scene.remove(targetMesh);
-                this.UI.untarget();
-            }
-            else {
-                this.UI.update(targetMesh);
-                if (targetMesh.userData.body) {
-                    const body = this.world.bodies.find(body => body.id === targetMesh.userData.body);
-                    if (body) {
-                        body.applyImpulse(direction, body.position);
-                    }
-                }
-            }
-        }
-        else {
-            mesh.position.lerp(target, 0.2);
-        }
-    };
-    this.scene.add(mesh);
-    return { mesh };
-};
-
-},{"cannon":1,"three":3}],17:[function(require,module,exports){
+},{"three":4}],19:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -77165,7 +77380,7 @@ function Avatar(id, userName, font) {
 }
 exports.default = Avatar;
 
-},{"./objects":20,"three":3}],18:[function(require,module,exports){
+},{"./objects":22,"three":4}],20:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -77210,7 +77425,7 @@ function Terrain(params = {}) {
 }
 exports.default = Terrain;
 
-},{"../constants":21,"three":3}],19:[function(require,module,exports){
+},{"../constants":23,"three":4}],21:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -77311,7 +77526,7 @@ function Tree() {
 }
 exports.default = Tree;
 
-},{"cannon":1,"three":3}],20:[function(require,module,exports){
+},{"cannon":1,"three":4}],22:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -77357,16 +77572,13 @@ function Stone(x = 0.5, y = 2, z = 1) {
     return stone;
 }
 exports.Stone = Stone;
-function Box() {
+function Box(texture) {
     let dimensions = [0.25, 0.25, 0.25];
     // CANNON
     let cannonBoxShape = new CANNON.Box(new CANNON.Vec3(...dimensions));
     let body = new CANNON.Body({ mass: 5 });
     body.addShape(cannonBoxShape);
     // THREE
-    let texture = new THREE.TextureLoader().load(constants_1.BASE_ASSET_URL + 'crate.jpg');
-    texture.magFilter = THREE.NearestFilter;
-    texture.minFilter = THREE.LinearMipMapLinearFilter;
     let mesh = new THREE.Mesh(new THREE.BoxGeometry(...dimensions.map(d => d * 2)), new THREE.MeshLambertMaterial({
         map: texture,
         vertexColors: THREE.VertexColors
@@ -77434,7 +77646,7 @@ function generateCampfire(ctx) {
 }
 exports.generateCampfire = generateCampfire;
 
-},{"../constants":21,"cannon":1,"three":3}],21:[function(require,module,exports){
+},{"../constants":23,"cannon":1,"three":4}],23:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BASE_ASSET_URL = 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/';
@@ -77444,7 +77656,7 @@ exports.assets = {
     sky: `${exports.BASE_ASSET_URL}/galaxy.jpg`
 };
 
-},{}],22:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 "use strict";
 /**
  * @author mrdoob / http://mrdoob.com/
@@ -77590,24 +77802,10 @@ function PointerLockControls(camera, cannonBody, avatar) {
 ;
 exports.default = PointerLockControls;
 
-},{"cannon":1,"three":3}],23:[function(require,module,exports){
+},{"cannon":1,"three":4}],25:[function(require,module,exports){
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const lodash_1 = require("lodash");
-const THREE = require("three");
-function Helper() { }
-Helper.prototype.getSelected = function () {
-    return this.avatar.userData.selected ?
-        this.scene.getObjectById(this.avatar.userData.selected) : null;
-};
 function getObjectById(ctx) {
     return function (id) {
         ctx.scene.children.find(child => child.userData &&
@@ -77615,32 +77813,8 @@ function getObjectById(ctx) {
     };
 }
 exports.getObjectById = getObjectById;
-Helper.prototype.getZ = function (x, y) {
-    let { terrain: { geometry: { vertices } } } = this;
-    let index = lodash_1.findIndex(vertices, {
-        x: Math.round(x),
-        y: Math.round(y)
-    });
-    let z = vertices[index] ? vertices[index].z : 0;
-    return z;
-};
-Helper.prototype.randomPositionOnTerrain = function () {
-    let x = Math.round(Math.random() * 100) - 50;
-    let y = Math.round(Math.random() * 100) - 50;
-    let z = Helper.prototype.getZ.apply(this, [x, y]);
-    return [x, y, z];
-};
-function loadFont() {
-    return __awaiter(this, void 0, void 0, function* () {
-        let loader = new THREE.FontLoader();
-        return new Promise((resolve, reject) => {
-            loader.load('/fonts/helvetiker.json', font => resolve(font));
-        });
-    });
-}
-exports.loadFont = loadFont;
 function getUnixTime() {
-    return new Date().getTime() / 1000;
+    return (new Date()).getTime() / 1000;
 }
 exports.getUnixTime = getUnixTime;
 function segment(matrix, vertices) {
@@ -77669,6 +77843,5 @@ function segmentTopography(topography, matrix) {
     return out;
 }
 exports.segmentTopography = segmentTopography;
-exports.default = Helper;
 
-},{"lodash":2,"three":3}]},{},[9]);
+},{"lodash":3}]},{},[10]);

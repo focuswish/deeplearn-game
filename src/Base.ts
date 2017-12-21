@@ -19,7 +19,6 @@ Base.prototype.init = function(name, respawn) {
   return cache;
 }
 
-
 Base.prototype.getRandomPointOnPerimeter = function() {
   let avatarPerimeter = this.scene.getObjectByName('snowman/halo', true);
 
@@ -52,7 +51,7 @@ Base.prototype.register = function(
     // add to CANNON
     if(body) {
       mesh.userData.body = body.id
-      this.world.addBody(body)
+      this.cannon.world.addBody(body)
     }
 
     if(!name) return store;
@@ -99,7 +98,7 @@ Base.prototype.remove = function (entity) {
 
   this.base.removeMesh.apply(this, [mesh])
 
-  if(body) this.world.remove(body)
+  if(body) this.cannon.world.remove(body)
     
   let index = findIndex(cache.entities, entity)
   if(index > -1) {
@@ -185,58 +184,52 @@ Base.prototype.cullDistantObjects = function () {
   let farAway = this._base.nearby.reverse()
 
   farAway.slice(0, 10).forEach(entity => {
-    this.base.remove(this, [entity])
+    this.base.remove.apply(this, [entity])
   })
 }
 
 Base.prototype.tick = function () {
   let { store, frustum } = this._base;
     
-  setTimeout(() => {
-    this.base.getNearbyObjects.apply(this)
+  this.base.getNearbyObjects.apply(this)
 
-    let player = this.playerSphereBody;
-    let key = this.avatar.userData.id;
-
-    let wsData = {
+  let key = this.avatar.userData.id;
+    
+  if(Object.keys(this.data).length > 1) {  
+    this.socket.send.apply(this, [{
       position: this.data[key].body.position,
       velocity: this.data[key].body.velocity,
       didSpawn: this.data[key].didSpawn,
-      id: key,
       timestamp: new Date().getTime() / 1000,
       type: 'player',
-      userName: this.avatar.userData.name
-    }
-    
-    this.ws.send(JSON.stringify(wsData))
+    }])
+  }
 
-    if(Object.keys(store).length > 0) {
-      Object.keys(store).forEach(key => {
-        let cache = store[key]
+  if(Object.keys(store).length > 0) {
+    Object.keys(store).forEach(key => {
+    let cache = store[key]
 
-        let intersects = cache.entities.map(entity => {
-          return frustum.intersectsObject(entity.mesh.type === 'Mesh' ? 
-            entity.mesh : entity.mesh.children[0]
-          )
-        }).filter(visible => visible)
+    let intersects = cache.entities.map(entity => {
+      return frustum.intersectsObject(entity.mesh.type === 'Mesh' ? 
+        entity.mesh : entity.mesh.children[0]
+      )
+     }).filter(visible => visible)
           
-        let visibleCount = intersects.length;
-        store[key].visibleCount = visibleCount;
+    let visibleCount = intersects.length;
+    store[key].visibleCount = visibleCount;
           
-        if(cache.entities.length > 100) {
-          //base.cullDistantObjects(cache.entities)
-        }
-          
-        if(visibleCount < 1) {    
-          if(cache.respawn) {
-            if(cache.entities.length > 100) this.removeMeshesByName(key)
-            cache.respawn()
-          }
-        }
-      })
+    if(cache.entities.length > 100) {
+      this.base.cullDistantObjects.apply(this, [cache.entities])
     }
-    this.base.tick.apply(this)
-    }, 1000)
+          
+    if(visibleCount < 1) {    
+      if(cache.respawn) {
+        if(cache.entities.length > 100) this.removeMeshesByName(key)
+          cache.respawn()
+        }
+      }
+    })
+  }
 }
 
 
@@ -275,3 +268,17 @@ Base.prototype.getEntityByMesh = function(mesh) {
   })
 }
 
+Base.prototype.getHeroTargetMesh = function() {
+  return this.avatar.userData.selected ? this.scene.getObjectById(this.avatar.userData.selected) : null
+}
+
+Base.prototype.getZ = function(x, y) {
+  let { terrain: { geometry: { vertices } } } = this;
+    
+  let index = findIndex(vertices, { 
+    x: Math.round(x),
+    y: Math.round(y)
+  })
+
+  return vertices[index] ? vertices[index].z : 0
+}
