@@ -1,25 +1,23 @@
 import * as THREE from 'three'
 
-export function Sprite (geometry, material) {
+export default function Sprite (geometry, material) {
   this.mesh = new THREE.Mesh(
     geometry, 
     material
   )
-}
-
-
-Sprite.prototype.create = function(name, id) {
   this.mesh.name = name
   this.mesh.castShadow = true;
   this.mesh.receiveShadow = true;
+}
 
+
+Sprite.prototype.set = function(props = {}) {
   this.mesh.userData = {
     ...this.mesh.userData,
     selectable: true,
     health: 100,
     maxHealth: 100,
-    id,
-    name,
+    ...props,
   }
 
   return this;

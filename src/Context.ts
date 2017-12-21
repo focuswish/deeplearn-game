@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import Widget from './Widget'
+import UI from './UI'
 import * as CANNON from 'cannon'
 import Keyboard from './Keyboard'
 import Weapon from './Weapon'
@@ -43,14 +43,13 @@ export default function Context() {
   this.controls = {}
 
   this._base = {}
-  this._base.store = {}
   this._base.cameraViewProjectionMatrix = new THREE.Matrix4()
   this._base.frustum = new THREE.Frustum()
   this._base.nearby = []
 
   this._assets = {}
 
-  this.UI = Object.create(Widget.prototype)
+  this.UI = Object.create(UI.prototype)
 
   this.cannon = {}
   this.cannon.world = new CANNON.World();

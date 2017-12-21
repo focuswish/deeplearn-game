@@ -76039,16 +76039,6 @@ function tryDecode(str, decode) {
 })));
 
 },{}],5:[function(require,module,exports){
-var v1 = require('./v1');
-var v4 = require('./v4');
-
-var uuid = v4;
-uuid.v1 = v1;
-uuid.v4 = v4;
-
-module.exports = uuid;
-
-},{"./v1":8,"./v4":9}],6:[function(require,module,exports){
 /**
  * Convert array of 16 byte values to UUID string format of the form:
  * XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
@@ -76073,7 +76063,7 @@ function bytesToUuid(buf, offset) {
 
 module.exports = bytesToUuid;
 
-},{}],7:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 (function (global){
 // Unique ID creation requires a high quality random # generator.  In the
 // browser this is a little complicated due to unknown quality of Math.random()
@@ -76110,109 +76100,7 @@ if (!rng) {
 module.exports = rng;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],8:[function(require,module,exports){
-var rng = require('./lib/rng');
-var bytesToUuid = require('./lib/bytesToUuid');
-
-// **`v1()` - Generate time-based UUID**
-//
-// Inspired by https://github.com/LiosK/UUID.js
-// and http://docs.python.org/library/uuid.html
-
-// random #'s we need to init node and clockseq
-var _seedBytes = rng();
-
-// Per 4.5, create and 48-bit node id, (47 random bits + multicast bit = 1)
-var _nodeId = [
-  _seedBytes[0] | 0x01,
-  _seedBytes[1], _seedBytes[2], _seedBytes[3], _seedBytes[4], _seedBytes[5]
-];
-
-// Per 4.2.2, randomize (14 bit) clockseq
-var _clockseq = (_seedBytes[6] << 8 | _seedBytes[7]) & 0x3fff;
-
-// Previous uuid creation time
-var _lastMSecs = 0, _lastNSecs = 0;
-
-// See https://github.com/broofa/node-uuid for API details
-function v1(options, buf, offset) {
-  var i = buf && offset || 0;
-  var b = buf || [];
-
-  options = options || {};
-
-  var clockseq = options.clockseq !== undefined ? options.clockseq : _clockseq;
-
-  // UUID timestamps are 100 nano-second units since the Gregorian epoch,
-  // (1582-10-15 00:00).  JSNumbers aren't precise enough for this, so
-  // time is handled internally as 'msecs' (integer milliseconds) and 'nsecs'
-  // (100-nanoseconds offset from msecs) since unix epoch, 1970-01-01 00:00.
-  var msecs = options.msecs !== undefined ? options.msecs : new Date().getTime();
-
-  // Per 4.2.1.2, use count of uuid's generated during the current clock
-  // cycle to simulate higher resolution clock
-  var nsecs = options.nsecs !== undefined ? options.nsecs : _lastNSecs + 1;
-
-  // Time since last uuid creation (in msecs)
-  var dt = (msecs - _lastMSecs) + (nsecs - _lastNSecs)/10000;
-
-  // Per 4.2.1.2, Bump clockseq on clock regression
-  if (dt < 0 && options.clockseq === undefined) {
-    clockseq = clockseq + 1 & 0x3fff;
-  }
-
-  // Reset nsecs if clock regresses (new clockseq) or we've moved onto a new
-  // time interval
-  if ((dt < 0 || msecs > _lastMSecs) && options.nsecs === undefined) {
-    nsecs = 0;
-  }
-
-  // Per 4.2.1.2 Throw error if too many uuids are requested
-  if (nsecs >= 10000) {
-    throw new Error('uuid.v1(): Can\'t create more than 10M uuids/sec');
-  }
-
-  _lastMSecs = msecs;
-  _lastNSecs = nsecs;
-  _clockseq = clockseq;
-
-  // Per 4.1.4 - Convert from unix epoch to Gregorian epoch
-  msecs += 12219292800000;
-
-  // `time_low`
-  var tl = ((msecs & 0xfffffff) * 10000 + nsecs) % 0x100000000;
-  b[i++] = tl >>> 24 & 0xff;
-  b[i++] = tl >>> 16 & 0xff;
-  b[i++] = tl >>> 8 & 0xff;
-  b[i++] = tl & 0xff;
-
-  // `time_mid`
-  var tmh = (msecs / 0x100000000 * 10000) & 0xfffffff;
-  b[i++] = tmh >>> 8 & 0xff;
-  b[i++] = tmh & 0xff;
-
-  // `time_high_and_version`
-  b[i++] = tmh >>> 24 & 0xf | 0x10; // include version
-  b[i++] = tmh >>> 16 & 0xff;
-
-  // `clock_seq_hi_and_reserved` (Per 4.2.2 - include variant)
-  b[i++] = clockseq >>> 8 | 0x80;
-
-  // `clock_seq_low`
-  b[i++] = clockseq & 0xff;
-
-  // `node`
-  var node = options.node || _nodeId;
-  for (var n = 0; n < 6; ++n) {
-    b[i + n] = node[n];
-  }
-
-  return buf ? buf : bytesToUuid(b);
-}
-
-module.exports = v1;
-
-},{"./lib/bytesToUuid":6,"./lib/rng":7}],9:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 var rng = require('./lib/rng');
 var bytesToUuid = require('./lib/bytesToUuid');
 
@@ -76243,7 +76131,7 @@ function v4(options, buf, offset) {
 
 module.exports = v4;
 
-},{"./lib/bytesToUuid":6,"./lib/rng":7}],10:[function(require,module,exports){
+},{"./lib/bytesToUuid":5,"./lib/rng":6}],8:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -76294,8 +76182,6 @@ World.prototype.intro = function () {
                 if (input && input.value) {
                     this.userName = input.value;
                     container.parentElement.removeChild(container);
-                    //body.style.backgroundImage = ''
-                    //this.scene.background = this._assets.textures['gradient2']
                     resolve();
                 }
             };
@@ -76324,13 +76210,18 @@ World.prototype.update = function () {
         this.base.sync.apply(this, ['boxes']);
         this.base.sync.apply(this, ['icelances']);
         let players = Object.keys(this.data);
-        if (heroTarget !== _heroTarget && _heroTarget.position) {
+        if (_heroTarget &&
+            _heroTarget.position &&
+            heroTarget !== _heroTarget) {
             console.log(_heroTarget);
             heroTarget = _heroTarget;
             let { position: { x, y } } = heroTarget;
             let z = this.base.getZ.apply(this, [x, y]);
             this.halo.visible = true;
             this.halo.position.set(x, y, z);
+        }
+        if (!_heroTarget) {
+            this.halo.visible = false;
         }
         if (players.length > 0) {
             players.forEach(key => {
@@ -76353,7 +76244,7 @@ World.prototype.init = function () {
     let pointerlockchange = (event) => {
         this.controls.enabled = true;
     };
-    window.addEventListener('resize', this.onWindowResize, false);
+    window.addEventListener('resize', this.onWindowResize.bind(this), false);
     document.addEventListener('pointerlockchange', pointerlockchange, false);
     document.addEventListener('mozpointerlockchange', pointerlockchange, false);
     document.addEventListener('webkitpointerlockchange', pointerlockchange, false);
@@ -76392,6 +76283,8 @@ World.prototype.createAvatar = function () {
     this.avatar = this.data[uid].mesh;
     this.scene.updateMatrixWorld();
     this.UI.init(avatar, this._assets.textures['gradient1']);
+    this.weapon.createIcon.apply(this, ['icelance']);
+    this.weapon.createIcon.apply(this, ['icelance']);
     this.physics.init.apply(this);
     return this;
 };
@@ -76402,7 +76295,7 @@ world.intro().then(() => {
 });
 exports.default = World;
 
-},{"./Assets":11,"./Base":12,"./Context":13,"./Physics":15,"./components/Snowman":19,"./util/PointerLockControls":24,"./util/helpers":25,"cookie":2,"three":4,"uuid/v4":9}],11:[function(require,module,exports){
+},{"./Assets":9,"./Base":10,"./Context":11,"./Physics":13,"./components/Snowman":17,"./util/PointerLockControls":22,"./util/helpers":23,"cookie":2,"three":4,"uuid/v4":7}],9:[function(require,module,exports){
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -76471,28 +76364,13 @@ Assets.prototype.load = function () {
     ]);
 };
 
-},{"./components/Terrain":20,"./constants":23,"three":4}],12:[function(require,module,exports){
+},{"./components/Terrain":18,"./constants":21,"three":4}],10:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
 const lodash_1 = require("lodash");
 function Base() { }
 exports.default = Base;
-Base.prototype.init = function (name, respawn) {
-    let { store } = this._base;
-    if (!store[name])
-        store[name] = {};
-    let cache = store[name];
-    if (!cache.name)
-        cache.name = name;
-    if (!cache.entities)
-        cache.entities = [];
-    if (!cache.visibleCount)
-        cache.visibleCount = 0;
-    if (!cache.respawn && respawn)
-        cache.respawn = respawn;
-    return cache;
-};
 Base.prototype.getRandomPointOnPerimeter = function () {
     let avatarPerimeter = this.scene.getObjectByName('snowman/halo', true);
     if (!avatarPerimeter) {
@@ -76501,12 +76379,11 @@ Base.prototype.getRandomPointOnPerimeter = function () {
     let pointOnPerimeter = lodash_1.sample(avatarPerimeter.geometry.vertices).clone();
     let vector = avatarPerimeter
         .getWorldPosition()
-        .add(pointOnPerimeter)
-        .add(new THREE.Vector3(0, 0, -0.2));
+        .add(pointOnPerimeter);
+    vector.setZ(this.base.getZ.apply(this, [vector.x, vector.y]));
     return vector;
 };
 Base.prototype.register = function (mesh, body, name = null, respawn = null, copyQuaternion = true) {
-    let { store } = this._base;
     // add to THREE
     this.scene.add(mesh);
     // add to CANNON
@@ -76514,16 +76391,15 @@ Base.prototype.register = function (mesh, body, name = null, respawn = null, cop
         mesh.userData.body = body.id;
         this.cannon.world.addBody(body);
     }
-    if (!name)
-        return store;
-    let cache = this.base.init.apply(this, [name, respawn]);
-    cache.entities.push({ body, mesh, name, copyQuaternion });
     return this;
 };
-Base.prototype.registerMesh = function (mesh) {
-    this.scene.add(mesh);
-};
 Base.prototype.removeMesh = function (mesh) {
+    console.log(`Removing mesh ${mesh.name} with distance ${mesh.userData.distance}`);
+    if (mesh.userData.body) {
+        let body = this.base.getCannonBodyById.apply(this, [mesh.userData.body]);
+        if (body)
+            this.cannon.world.remove(body);
+    }
     function removeAssociatedObjects(child) {
         if (child.geometry)
             child.geometry.dispose();
@@ -76543,114 +76419,100 @@ Base.prototype.removeMesh = function (mesh) {
     this.scene.remove(mesh);
     return this;
 };
-Base.prototype.remove = function (entity) {
-    let cache = this._base.store[entity.name];
-    let { mesh, body } = entity;
-    this.base.removeMesh.apply(this, [mesh]);
-    if (body)
-        this.cannon.world.remove(body);
-    let index = lodash_1.findIndex(cache.entities, entity);
-    if (index > -1) {
-        cache.entities.splice(index, 1);
-    }
-};
 Base.prototype.removeMeshesByName = function (name) {
-    let cache = this._base.store[name];
-    if (!cache)
-        return;
-    let { entities } = cache;
-    entities.forEach((entity, i) => {
-        this.base.remove.apply(this, [entity]);
+    let meshes = this.base.getObjectsByName.apply(this, [name]);
+    meshes.forEach(mesh => {
+        this.base.removeMesh.apply(this, [mesh]);
     });
-    cache.visibleCount = 0;
-    cache.entities = [];
     return this;
 };
+Base.prototype.getObjectsByName = function (name) {
+    return this.scene.children.filter(child => child.name === name);
+};
+Base.prototype.getCannonBodyById = function (id) {
+    return this.cannon.world.bodies.find(body => body.id === id);
+};
 Base.prototype.sync = function (name) {
-    if (!this._base.store[name])
-        return this;
-    let { entities } = this._base.store[name];
-    entities.forEach((entity, i) => {
-        if (entity.body) {
-            entity.mesh.position.copy(entity.body.position);
-            if (entity.copyQuaternion)
-                entity.mesh.quaternion.copy(entity.body.quaternion);
+    let meshes = this.base.getObjectsByName.apply(this, [name]);
+    meshes.forEach(mesh => {
+        if (mesh.userData.body) {
+            let body = this.base.getCannonBodyById.apply(this, [mesh.userData.body]);
+            if (body) {
+                mesh.position.copy(body.position);
+                mesh.quaternion.copy(body.quaternion);
+            }
         }
     });
     return this;
 };
-Base.prototype.get = (name) => {
-    if (!this._base.store[name])
-        return [];
-    return this._base.store[name];
-};
 Base.prototype.getNearby = function () {
     return this._base.nearby;
 };
-Base.prototype.getEntityById = function (id) {
-    let needle;
-    Object.keys(this._base.store).forEach(key => {
-        let entities = this._base.store[key].entities;
-        Object.keys(entities).forEach(key => {
-            if (entities[key].mesh.name === id) {
-                needle = entities[key];
-            }
-        });
-    });
-    return needle;
-};
-Base.prototype.getNearbyObjects = function () {
+Base.prototype.getProximateMeshes = function () {
     let objects = this.scene.children
         .filter(child => child.userData &&
         child.userData.selectable &&
-        child.id !== this.avatar.id).map(object => ({
-        object,
-        distance: this.avatar.position.distanceTo(object.position)
-    }))
-        .sort((a, b) => a.distance - b.distance);
+        child.id !== this.avatar.id).map(child => Object.assign(child, {
+        userData: Object.assign({}, child.userData, { distance: this.avatar.position.distanceTo(child.position) })
+    })).sort((a, b) => a.userData.distance - b.userData.distance);
     this._base.nearby = objects;
     return this;
 };
-Base.prototype.cullDistantObjects = function () {
-    let farAway = this._base.nearby.reverse();
-    farAway.slice(0, 10).forEach(entity => {
-        this.base.remove.apply(this, [entity]);
+Base.prototype.cullDistantObjects = function (count = 10) {
+    let distantMeshes = this._base.nearby.reverse().filter(mesh => mesh.userData.type !== 'player');
+    distantMeshes.slice(0, count).forEach(mesh => {
+        this.base.removeMesh.apply(this, [mesh]);
     });
 };
 Base.prototype.tick = function () {
-    let { store, frustum } = this._base;
-    this.base.getNearbyObjects.apply(this);
-    let key = this.avatar.userData.id;
-    if (Object.keys(this.data).length > 1) {
-        this.socket.send.apply(this, [{
-                position: this.data[key].body.position,
-                velocity: this.data[key].body.velocity,
-                didSpawn: this.data[key].didSpawn,
-                timestamp: new Date().getTime() / 1000,
-                type: 'player',
-            }]);
+    console.log('tick');
+    let { frustum } = this._base;
+    this.base.getProximateMeshes.apply(this);
+    let hero = this.scene.getObjectById(this.avatar.id);
+    this.socket.send.apply(this, [{
+            position: hero.position,
+            velocity: hero.velocity,
+            timestamp: new Date().getTime() / 1000,
+            type: 'player',
+        }]);
+    if (this.scene.children.length > 100) {
+        this.base.cullDistantObjects.apply(this);
     }
-    if (Object.keys(store).length > 0) {
-        Object.keys(store).forEach(key => {
-            let cache = store[key];
-            let intersects = cache.entities.map(entity => {
-                return frustum.intersectsObject(entity.mesh.type === 'Mesh' ?
-                    entity.mesh : entity.mesh.children[0]);
-            }).filter(visible => visible);
-            let visibleCount = intersects.length;
-            store[key].visibleCount = visibleCount;
-            if (cache.entities.length > 100) {
-                this.base.cullDistantObjects.apply(this, [cache.entities]);
-            }
-            if (visibleCount < 1) {
-                if (cache.respawn) {
-                    if (cache.entities.length > 100)
-                        this.removeMeshesByName(key);
-                    cache.respawn();
-                }
-            }
+    let distantMeshes = this._base.nearby.filter(mesh => mesh.userData.distance && mesh.userData.distance > 30);
+    if (distantMeshes) {
+        distantMeshes.forEach(mesh => {
+            this.base.removeMesh.apply(this, [mesh]);
         });
     }
+    if (!this._base.nearby || this._base.nearby.length < 20) {
+        this.physics.spawnBoxes.apply(this);
+        this.physics.spawnTrees.apply(this);
+    }
+    /*if(Object.keys(store).length > 0) {
+      Object.keys(store).forEach(key => {
+      let cache = store[key]
+  
+      let intersects = cache.entities.map(entity => {
+        return frustum.intersectsObject(entity.mesh.type === 'Mesh' ?
+          entity.mesh : entity.mesh.children[0]
+        )
+       }).filter(visible => visible)
+            
+      let visibleCount = intersects.length;
+      store[key].visibleCount = visibleCount;
+            
+      if(cache.entities.length > 100) {
+        this.base.cullDistantObjects.apply(this, [cache.entities])
+      }
+            
+      if(visibleCount < 1) {
+        if(cache.respawn) {
+          if(cache.entities.length > 100) this.removeMeshesByName(key)
+            cache.respawn()
+          }
+        }
+      })
+    }*/
 };
 Base.prototype.update = function () {
     let { cameraViewProjectionMatrix, frustum } = this._base;
@@ -76661,19 +76523,10 @@ Base.prototype.update = function () {
     frustum.setFromMatrix(cameraViewProjectionMatrix);
 };
 Base.prototype.getPlayerById = function (id) {
-    const objects = this.scene.children;
-    return objects.find(o => o.userData && o.userData.id === id);
-};
-Base.prototype.getEntityByMesh = function (mesh) {
-    const { store } = this._base;
-    Object.keys(store).map(key => {
-        let entities = store[key];
-        entities.forEach(entity => {
-        });
-    });
+    return this.scene.children.find(o => o.userData && o.userData.id === id);
 };
 Base.prototype.getHeroTargetMesh = function () {
-    return this.avatar.userData.selected ? this.scene.getObjectById(this.avatar.userData.selected) : null;
+    return this.avatar.userData.target ? this.scene.getObjectById(this.avatar.userData.target) : null;
 };
 Base.prototype.getZ = function (x, y) {
     let { terrain: { geometry: { vertices } } } = this;
@@ -76684,11 +76537,11 @@ Base.prototype.getZ = function (x, y) {
     return vertices[index] ? vertices[index].z : 0;
 };
 
-},{"lodash":3,"three":4}],13:[function(require,module,exports){
+},{"lodash":3,"three":4}],11:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
-const Widget_1 = require("./Widget");
+const UI_1 = require("./UI");
 const CANNON = require("cannon");
 const Keyboard_1 = require("./Keyboard");
 const Weapon_1 = require("./Weapon");
@@ -76718,12 +76571,11 @@ function Context() {
     this.tiles = [];
     this.controls = {};
     this._base = {};
-    this._base.store = {};
     this._base.cameraViewProjectionMatrix = new THREE.Matrix4();
     this._base.frustum = new THREE.Frustum();
     this._base.nearby = [];
     this._assets = {};
-    this.UI = Object.create(Widget_1.default.prototype);
+    this.UI = Object.create(UI_1.default.prototype);
     this.cannon = {};
     this.cannon.world = new CANNON.World();
     this.keyboard = new Keyboard_1.default();
@@ -76735,10 +76587,11 @@ function Context() {
 }
 exports.default = Context;
 
-},{"./Keyboard":14,"./Socket":16,"./Weapon":17,"./Widget":18,"cannon":1,"three":4}],14:[function(require,module,exports){
+},{"./Keyboard":12,"./Socket":14,"./UI":15,"./Weapon":16,"cannon":1,"three":4}],12:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const uuid = require("uuid");
+const THREE = require("three");
+const CANNON = require("cannon");
 function Keyboard() { }
 Keyboard.prototype.handleKeyDown = function () {
     let nearbyIndex = 0;
@@ -76757,7 +76610,7 @@ Keyboard.prototype.handleKeyDown = function () {
                     if (nearby().length <= nearbyIndex) {
                         nearbyIndex = 0;
                     }
-                    let selected = nearby()[nearbyIndex].object;
+                    let selected = nearby()[nearbyIndex];
                     if (selected) {
                         nearbyIndex++;
                         this.UI.target(selected);
@@ -76774,8 +76627,8 @@ Keyboard.prototype.handleKeyDown = function () {
                 let target = this.base.getHeroTargetMesh.apply(this);
                 let origin = Object.assign({}, this.avatar.position);
                 if (target) {
-                    this.weapon.icelance.apply(this, [
-                        uuid(),
+                    this.weapon.fire.apply(this, [
+                        'icelance',
                         origin,
                         target
                     ]);
@@ -76793,9 +76646,140 @@ Keyboard.prototype.handleKeyDown = function () {
         }
     });
 };
+Keyboard.prototype.PointerLockControls = function (camera, cannonBody, avatar) {
+    let jumpVelocity = 10;
+    let scope = this;
+    let pitchObject = new THREE.Object3D();
+    pitchObject.add(camera);
+    let yawObject = new THREE.Object3D();
+    yawObject.position.z = 2;
+    yawObject.add(pitchObject);
+    let quat = new THREE.Quaternion();
+    let moveForward = false;
+    let moveBackward = false;
+    let moveLeft = false;
+    let moveRight = false;
+    let canJump = false;
+    let contactNormal = new CANNON.Vec3();
+    let upAxis = new CANNON.Vec3(0, 0, 1);
+    cannonBody.addEventListener('collide', function (e) {
+        var contact = e.contact;
+        if (contact.bi.id == cannonBody.id) {
+            contact.ni.negate(contactNormal);
+        }
+        else {
+            contactNormal.copy(contact.ni);
+        }
+        if (contactNormal.dot(upAxis) > 0.5) {
+            canJump = true;
+        }
+    });
+    let { velocity } = cannonBody;
+    let PI_2 = Math.PI / 2;
+    const onMouseMove = function (event) {
+        if (scope.enabled === false)
+            return;
+        var movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+        var movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+        yawObject.rotation.z -= movementX * 0.002;
+        pitchObject.rotation.x -= movementY * 0.002;
+        pitchObject.rotation.x = Math.max(-PI_2, Math.min(PI_2, pitchObject.rotation.x));
+    };
+    const onKeyDown = function (event) {
+        if (cannonBody.sleepState === 2)
+            cannonBody.wakeUp();
+        switch (event.keyCode) {
+            case 38: // up
+            case 87:// w
+                moveForward = true;
+                break;
+            case 37: // left
+            case 65:// a
+                moveLeft = true;
+                break;
+            case 40: // down
+            case 83:// s
+                moveBackward = true;
+                break;
+            case 39: // right
+            case 68:// d
+                moveRight = true;
+                break;
+            case 32:// space
+                if (canJump === true) {
+                    velocity.z = jumpVelocity;
+                }
+                canJump = false;
+                break;
+        }
+    };
+    const onKeyUp = function (event) {
+        switch (event.keyCode) {
+            case 38: // up
+            case 87:// w
+                moveForward = false;
+                break;
+            case 37: // left
+            case 65:// a
+                moveLeft = false;
+                break;
+            case 40: // down
+            case 83:// a
+                moveBackward = false;
+                break;
+            case 39: // right
+            case 68:// d
+                moveRight = false;
+                break;
+        }
+        ;
+    };
+    document.addEventListener('mousemove', onMouseMove, false);
+    document.addEventListener('keydown', onKeyDown, false);
+    document.addEventListener('keyup', onKeyUp, false);
+    this.enabled = false;
+    this.getObject = function () {
+        return yawObject;
+    };
+    this.getDirection = function (targetVec) {
+        targetVec.set(0, 0, -1);
+        quat.multiplyVector3(targetVec);
+    };
+    // Moves the camera to the Cannon.js object position and adds velocity to the object if the run key is down
+    var inputVelocity = new THREE.Vector3();
+    var euler = new THREE.Euler();
+    this.update = function (delta) {
+        //if ( scope.enabled === false ) return;
+        delta *= 0.1;
+        inputVelocity.set(0, 0, 0);
+        let direction = camera.getWorldDirection();
+        if (moveForward)
+            inputVelocity = direction.multiplyScalar(0.5);
+        if (moveBackward)
+            inputVelocity = direction.negate().multiplyScalar(0.5);
+        if (moveLeft) {
+            pitchObject.rotation.z += 0.2;
+            avatar.children[1].rotateZ(0.2);
+        }
+        if (moveRight) {
+            pitchObject.rotation.z += -0.2;
+            avatar.children[1].rotateZ(-0.2);
+        }
+        // Convert velocity to world coordinates
+        euler.x = pitchObject.rotation.x;
+        euler.z = yawObject.rotation.z;
+        euler.order = "XYZ";
+        quat.setFromEuler(euler);
+        inputVelocity.applyQuaternion(quat);
+        // Add to the object
+        velocity.x += inputVelocity.x;
+        velocity.y += inputVelocity.y;
+        yawObject.position.copy(cannonBody.position);
+    };
+};
 exports.default = Keyboard;
 
-},{"uuid":5}],15:[function(require,module,exports){
+},{"cannon":1,"three":4}],13:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const CANNON = require("cannon");
@@ -76968,12 +76952,11 @@ Physics.prototype.init = function () {
 function Physics() { }
 exports.Physics = Physics;
 
-},{"../components/Tree":21,"../components/objects":22,"cannon":1,"lodash":3,"three":4}],16:[function(require,module,exports){
+},{"../components/Tree":19,"../components/objects":20,"cannon":1,"lodash":3,"three":4}],14:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
 const CANNON = require("cannon");
-const uuid = require("uuid");
 const Snowman_1 = require("./components/Snowman");
 const helpers_1 = require("./util/helpers");
 function Socket() { }
@@ -76988,8 +76971,8 @@ Socket.prototype.handleMessage = function () {
             let target = this.data[message.target];
             if (target && target.mesh) {
                 let { x, y, z } = message.origin;
-                this.weapon.icelance.apply(this, [
-                    uuid(),
+                this.weapon.fire.apply(this, [
+                    'icelance',
                     new THREE.Vector3(x, y, z),
                     target.mesh
                 ]);
@@ -77022,7 +77005,283 @@ Socket.prototype.handleMessage = function () {
     };
 };
 
-},{"./components/Snowman":19,"./util/helpers":25,"cannon":1,"three":4,"uuid":5}],17:[function(require,module,exports){
+},{"./components/Snowman":17,"./util/helpers":23,"cannon":1,"three":4}],15:[function(require,module,exports){
+"use strict";
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) if (e.indexOf(p[i]) < 0)
+            t[p[i]] = s[p[i]];
+    return t;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const THREE = require("three");
+const uiHeroHealth = {
+    parentNode: 'body',
+    id: 'ui-hero-health',
+    style: {
+        position: 'absolute',
+        right: '10px',
+        top: '10px',
+        width: '200px',
+        backgroundImage: 'linear-gradient(0deg, #E6E9F0 0%, #EEF1F5 100%)',
+        boxShadow: '0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.3)'
+    },
+    dataset: {
+        health: 100
+    },
+    childNodes: [{
+            style: {
+                width: '100%',
+                height: '20px',
+                backgroundImage: 'linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%)'
+            }
+        }]
+};
+const uiHeroAbilities = {
+    parentNode: 'body',
+    id: 'ui-hero-abilities',
+    style: {
+        position: 'absolute',
+        right: '10px',
+        top: '40px',
+        width: '200px',
+        display: 'flex'
+    }
+};
+const uiHeroTarget = {
+    parentNode: 'body',
+    id: 'ui-hero-target',
+    style: {
+        position: 'absolute',
+        left: '10px',
+        top: '10px',
+        width: '50px',
+        height: '50px',
+        backgroundColor: '#ddd',
+        boxShadow: '0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.3)',
+        display: 'none'
+    },
+    childNodes: [{
+            id: 'ui-hero-target-health',
+            textContent: '100/100',
+            style: {
+                textAlign: 'center',
+                fontSize: '10px',
+                color: '#333',
+                marginTop: '35px'
+            }
+        }]
+};
+function UI() { }
+exports.default = UI;
+UI.prototype.appendStylesheet = function () {
+    let style = document.createElement("style");
+    style.appendChild(document.createTextNode(""));
+    document.head.appendChild(style);
+    let sheet = style.sheet;
+    let rules = [];
+    for (let i = 0; i < 10; i++) {
+        let styles = `.ui-hero-ability-wrapper:nth-of-type(${i + 1}):before { content: "${i + 1}"; position: absolute; font-size: 8px; padding: 2px; }`;
+        sheet.insertRule(styles, i);
+    }
+    console.log(sheet);
+};
+UI.prototype.init = function (avatar, gradient) {
+    this.appendStylesheet();
+    let bar = () => document.getElementById(uiHeroHealth.id);
+    let div = () => document.getElementById(uiHeroTarget.id);
+    if (avatar && !bar()) {
+        this.create(uiHeroHealth);
+    }
+    if (avatar && !div()) {
+        this.create(uiHeroTarget);
+    }
+    this.cache = {};
+    this.div = div();
+    this.bar = bar();
+    this.avatar = avatar;
+    this.gradient = gradient;
+    return this;
+};
+UI.prototype.reset = function () {
+    this.element = null;
+    return this;
+};
+UI.prototype.set = function (element, props) {
+    for (let key in props) {
+        if (typeof props[key] === 'object') {
+            this.set(element[key], props[key]);
+        }
+        else {
+            element[key] = props[key];
+        }
+    }
+    return this;
+};
+UI.prototype.create = function (props) {
+    let { nodeName, parentNode, childNodes } = props, rest = __rest(props, ["nodeName", "parentNode", "childNodes"]);
+    let mergedProps = Object.assign({}, rest);
+    let element = document.createElement(nodeName || 'div');
+    this.set.apply(this, [element, mergedProps]);
+    let container = document.querySelector('body');
+    if (parentNode) {
+        container = typeof parentNode === 'object' ?
+            parentNode : document.querySelector(parentNode);
+    }
+    container.appendChild(element);
+    if (childNodes) {
+        childNodes.forEach(node => {
+            this.create(Object.assign({}, node, { parentNode: element }));
+        });
+    }
+    return this;
+};
+UI.prototype.registerWeapon = function (mesh) {
+    let { name } = mesh;
+    let url;
+    if (this.cache[name]) {
+        url = this.cache[name];
+    }
+    else {
+        url = meshToDataURL(mesh.clone(), this.gradient, 20);
+        this.cache[name] = url;
+    }
+    if (!document.getElementById(uiHeroAbilities.id)) {
+        this.create(uiHeroAbilities);
+    }
+    this.create({
+        parentNode: `#${uiHeroAbilities.id}`,
+        className: 'ui-hero-ability-wrapper',
+        style: {
+            opacity: 1.0,
+            backgroundColor: 'green'
+        },
+        childNodes: [{
+                id: mesh.name,
+                style: {
+                    width: '20px',
+                    height: '20px',
+                    border: '1px solid #333',
+                    backgroundImage: `url(${url})`,
+                    backgroundSize: 'cover',
+                    display: 'block'
+                }
+            }]
+    });
+};
+/*
+    content: "1";
+    position: absolute;
+    font-size: 8px;
+    padding: 2px;
+
+*/
+function meshToDataURL(mesh, gradient, size = 100) {
+    let camera = new THREE.PerspectiveCamera(70, 1, 0.01, 10);
+    camera.position.z = 1;
+    camera.position.y = -1;
+    camera.lookAt(0, 0, 0);
+    camera.up.set(0, 0, 1);
+    let scene = new THREE.Scene();
+    let light = new THREE.HemisphereLight(0xffffff, 0x000000, 0.7);
+    mesh.position.set(0, 0, 0);
+    mesh.scale.set(1.2, 1.2, 1.2);
+    scene.add(light);
+    scene.add(mesh);
+    scene.background = gradient;
+    let renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        preserveDrawingBuffer: true,
+        alpha: true
+    });
+    renderer.setSize(size, size);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setClearColor(0x000000, 0.0);
+    renderer.render(scene, camera);
+    let url = renderer.domElement.toDataURL();
+    renderer.forceContextLoss();
+    scene = null;
+    camera = null;
+    return url;
+}
+UI.prototype.target = function (mesh) {
+    let { name } = mesh;
+    let url;
+    if (this.cache[name]) {
+        url = this.cache[name];
+    }
+    else {
+        url = meshToDataURL(mesh.clone(), this.gradient);
+        this.cache[name] = url;
+    }
+    if (mesh.userData.health) {
+        this.div.childNodes[0].innerHTML = `${mesh.userData.health}/100`;
+    }
+    this.div.style.backgroundImage = `url(${url})`;
+    this.div.style.backgroundSize = 'cover';
+    this.div.style.display = 'block';
+    this.avatar.userData.target = mesh.id;
+};
+UI.prototype.untarget = function () {
+    let elem1 = document.getElementById(uiHeroTarget.childNodes[0].id);
+    elem1.parentElement.removeChild(elem1);
+    let elem2 = document.getElementById(uiHeroTarget.id);
+    elem2.parentElement.removeChild(elem2);
+    this.create(uiHeroTarget);
+    this.div = document.getElementById(uiHeroTarget.id);
+};
+UI.prototype.update = function (mesh) {
+    if (mesh.userData.health) {
+        if (mesh.userData.id === this.avatar.userData.id) {
+            this.bar.childNodes[0].style.width = `${mesh.userData.health}%`;
+        }
+        else {
+            this.div.childNodes[0].innerHTML = `${mesh.userData.health}/100`;
+        }
+    }
+};
+UI.prototype.welcomeScreen = function (onclick) {
+    let uiContainer = this.create({
+        id: 'ui-container',
+        style: {
+            position: 'absolute',
+            transform: 'translate(-50%, 0)',
+            top: '50%',
+            left: '50%'
+        },
+        childNodes: [{
+                nodeName: 'input',
+                id: 'ui-avatar-name',
+                placeholder: 'Your name',
+                style: {
+                    width: '200px',
+                    height: '30px',
+                    backgroundColor: '#fafafa',
+                    border: 0,
+                    outline: 0,
+                    borderRadius: '3px',
+                    marginRight: '20px',
+                    padding: '0 8px',
+                }
+            }, {
+                nodeName: 'button',
+                textContent: 'Submit',
+                style: {
+                    height: '30px',
+                    width: '90px',
+                    backgroundColor: 'fafafa',
+                    border: '1px solid #ddd',
+                    borderRadius: '3px'
+                }
+            }]
+    });
+    return this;
+};
+
+},{"three":4}],16:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const CANNON = require("cannon");
@@ -77043,30 +77302,37 @@ Weapon.prototype.getParameters = function (originPosition) {
     return this;
 };
 Weapon.prototype.postRender = function () {
-    let { originMeshPosition, targetMeshPosition, distanceToTarget, initialWeaponPosition, icelance, targetMesh } = this._weapon;
-    if (icelance.position.distanceTo(targetMeshPosition) < 0.1) {
-        this.scene.remove(icelance);
-        targetMesh.userData.health += -10;
-        if (targetMesh.userData.health < 0) {
-            this.scene.remove(targetMesh);
-            this.UI.untarget();
-        }
-        else {
-            this.UI.update(targetMesh);
-            if (targetMesh.userData.body) {
-                const body = this.cannon.world.bodies.find(body => body.id === targetMesh.userData.body);
-                if (body) {
-                    body.applyImpulse(distanceToTarget, body.position);
+    return (renderer, scene, camera, geometry, material, group) => {
+        let { originMeshPosition, targetMeshPosition, distanceToTarget, initialWeaponPosition, projectile, targetMesh } = this._weapon;
+        let dist = projectile.position.distanceTo(targetMeshPosition);
+        if (dist < 0.1) {
+            this.scene.remove(projectile);
+            targetMesh.userData.health += -10;
+            if (targetMesh.userData.health < 0) {
+                this.scene.remove(targetMesh);
+                this.UI.untarget();
+            }
+            else {
+                this.UI.update(targetMesh);
+                if (targetMesh.userData.body) {
+                    const body = this.cannon.world.bodies.find(body => body.id === targetMesh.userData.body);
+                    if (body) {
+                        body.applyImpulse(distanceToTarget, body.position);
+                    }
                 }
             }
         }
-    }
-    else {
-        icelance.position.lerp(targetMeshPosition, 0.2);
-    }
+        else {
+            let factor = (1 / dist) / 2 > 1 ? 1 : (1 / dist) / 2;
+            projectile.position.lerp(targetMeshPosition, factor);
+        }
+    };
 };
-Weapon.prototype.icelance = function (id, originPosition, targetMesh) {
-    this._weapon.targetMesh = targetMesh;
+Weapon.prototype.createIcon = function (label) {
+    let mesh = this.weapon[label].apply(this);
+    this.UI.registerWeapon(mesh);
+};
+Weapon.prototype.icelance = function () {
     let shape = new CANNON.Sphere(0.1);
     let geometry = new THREE.ConeGeometry(shape.radius, 8 * shape.radius, 32);
     let material = new THREE.MeshLambertMaterial({ color: 0xa5f2f3 });
@@ -77074,242 +77340,22 @@ Weapon.prototype.icelance = function (id, originPosition, targetMesh) {
     icelance.castShadow = true;
     icelance.receiveShadow = true;
     icelance.name = 'icelance';
+    return icelance;
+};
+Weapon.prototype.fire = function (label, originPosition, targetMesh) {
+    this._weapon.targetMesh = targetMesh;
+    let projectile = this.weapon[label]();
     this.weapon.getParameters.apply(this, [originPosition]);
-    icelance.position.copy(this._weapon.initialWeaponPosition);
-    icelance.lookAt(this._weapon.targetMeshPosition);
-    icelance.rotateX(Math.PI / 2);
-    icelance.onAfterRender = this.weapon.postRender.bind(this);
-    this._weapon.icelance = icelance;
-    this.scene.add(icelance);
-    return { icelance };
+    projectile.position.copy(this._weapon.initialWeaponPosition);
+    projectile.lookAt(this._weapon.targetMeshPosition);
+    projectile.rotateX(Math.PI / 2);
+    projectile.onAfterRender = this.weapon.postRender.apply(this);
+    this._weapon.projectile = projectile;
+    this.scene.add(projectile);
+    return this;
 };
 
-},{"cannon":1,"three":4}],18:[function(require,module,exports){
-"use strict";
-var __rest = (this && this.__rest) || function (s, e) {
-    var t = {};
-    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-        t[p] = s[p];
-    if (s != null && typeof Object.getOwnPropertySymbols === "function")
-        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) if (e.indexOf(p[i]) < 0)
-            t[p[i]] = s[p[i]];
-    return t;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const THREE = require("three");
-const healthbar = {
-    id: 'ui-avatar',
-    style: {
-        position: 'absolute',
-        right: '10px',
-        top: '10px',
-        width: '200px',
-        //backgroundColor: '#fafafa',
-        backgroundImage: 'linear-gradient(0deg, #E6E9F0 0%, #EEF1F5 100%)',
-        boxShadow: '0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.3)'
-    },
-    dataset: {
-        health: 100
-    }
-};
-const healthbarInner = {
-    style: {
-        width: '100%',
-        height: '20px',
-        backgroundImage: 'linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%)'
-    }
-};
-const abilitiesOuter = {
-    id: 'ui-abilities',
-    style: {
-        position: 'absolute',
-        right: '10px',
-        top: '50px',
-        width: '200px',
-    }
-};
-const abilities = [{
-        style: {
-            width: '20px',
-            height: '20px',
-            border: '1px solid #333'
-        }
-    }];
-const selectedObject = {
-    id: 'ui-target',
-    style: {
-        position: 'absolute',
-        left: '10px',
-        top: '10px',
-        width: '50px',
-        height: '50px',
-        backgroundColor: '#ddd',
-        boxShadow: '0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12), 0 8px 10px -5px rgba(0,0,0,0.3)',
-        display: 'none'
-    },
-};
-const selectedObjectInner = {
-    id: 'ui-target-health',
-    textContent: '100/100',
-    style: {
-        textAlign: 'center',
-        fontSize: '10px',
-        color: '#333',
-        marginTop: '35px'
-    }
-};
-function Widget() { }
-exports.default = Widget;
-Widget.prototype.init = function (avatar, gradient) {
-    let bar = () => document.getElementById('ui-avatar');
-    let div = () => document.getElementById('ui-target');
-    if (avatar && !bar()) {
-        this.create(healthbar).create(healthbarInner).reset();
-        this.create(abilitiesOuter).create(abilities[0]).reset();
-    }
-    if (avatar && !div()) {
-        this.create(selectedObject).create(selectedObjectInner).reset();
-    }
-    this.cache = {};
-    this.div = div();
-    this.bar = bar();
-    this.avatar = avatar;
-    this.gradient = gradient;
-};
-Widget.prototype.reset = function () {
-    this.element = null;
-    return this;
-};
-Widget.prototype.set = function (element, props) {
-    for (let key in props) {
-        if (typeof props[key] === 'object') {
-            this.set(element[key], props[key]);
-        }
-        else {
-            element[key] = props[key];
-        }
-    }
-    return this;
-};
-Widget.prototype.create = function (props = {}, parent = null) {
-    let { nodeName } = props, rest = __rest(props, ["nodeName"]);
-    let mergedProps = Object.assign({}, rest);
-    let element = document.createElement(nodeName || 'div');
-    this.set.apply(this, [element, mergedProps]);
-    let container = this.element ? this.element : document.querySelector('body');
-    container.appendChild(element);
-    if (!this.element) {
-        this.element = element;
-    }
-    return this;
-};
-function meshToDataURL(mesh, gradient) {
-    let camera = new THREE.PerspectiveCamera(70, 1, 0.01, 10);
-    camera.position.z = 1;
-    camera.position.y = -1;
-    camera.lookAt(0, 0, 0);
-    camera.up.set(0, 0, 1);
-    let scene = new THREE.Scene();
-    let light = new THREE.HemisphereLight(0xffffff, 0x000000, 0.7);
-    mesh.position.set(0, 0, 0);
-    mesh.scale.set(1.2, 1.2, 1.2);
-    scene.add(light);
-    scene.add(mesh);
-    scene.background = gradient;
-    let renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        preserveDrawingBuffer: true,
-        alpha: true
-    });
-    renderer.setSize(100, 100);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setClearColor(0x000000, 0.0);
-    renderer.render(scene, camera);
-    let url = renderer.domElement.toDataURL();
-    renderer.forceContextLoss();
-    scene = null;
-    camera = null;
-    return url;
-}
-Widget.prototype.target = function (mesh) {
-    let { name } = mesh;
-    let url;
-    if (this.cache[name]) {
-        url = this.cache[name];
-    }
-    else {
-        url = meshToDataURL(mesh.clone(), this.gradient);
-        this.cache[name] = url;
-    }
-    if (mesh.userData.health) {
-        this.div.childNodes[0].innerHTML = `${mesh.userData.health}/100`;
-    }
-    this.div.style.backgroundImage = `url(${url})`;
-    this.div.style.backgroundSize = 'cover';
-    this.div.style.display = 'block';
-    this.avatar.userData.selected = mesh.id;
-};
-Widget.prototype.untarget = function () {
-    let elem1 = document.getElementById('ui-target-health');
-    elem1.parentElement.removeChild(elem1);
-    let elem2 = document.getElementById('ui-target');
-    elem2.parentElement.removeChild(elem2);
-    this.reset().create(selectedObject).create(selectedObjectInner).reset();
-    this.div = document.getElementById('ui-target');
-};
-Widget.prototype.update = function (mesh) {
-    if (mesh.userData.health) {
-        if (mesh.userData.id === this.avatar.userData.id) {
-            this.bar.childNodes[0].style.width = `${mesh.userData.health}%`;
-        }
-        else {
-            this.div.childNodes[0].innerHTML = `${mesh.userData.health}/100`;
-        }
-    }
-};
-Widget.prototype.welcomeScreen = function (onclick) {
-    let uiContainer = this.create({
-        id: 'ui-container',
-        style: {
-            position: 'absolute',
-            transform: 'translate(-50%, 0)',
-            top: '50%',
-            left: '50%'
-        }
-    }).create({
-        nodeName: 'input',
-        id: 'ui-avatar-name',
-        placeholder: 'Your name',
-        style: {
-            width: '200px',
-            height: '30px',
-            backgroundColor: '#fafafa',
-            border: 0,
-            outline: 0,
-            borderRadius: '3px',
-            marginRight: '20px',
-            padding: '0 8px',
-        }
-    }).create({
-        nodeName: 'button',
-        textContent: 'Submit',
-        style: {
-            height: '30px',
-            width: '90px',
-            backgroundColor: 'fafafa',
-            border: '1px solid #ddd',
-            borderRadius: '3px'
-        }
-    }).reset();
-    return this;
-};
-//export default function(avatar, gradient) {
-//    let widget = Object.create(Widget.prototype)
-//    Widget.apply(widget, [avatar, gradient])
-//    return widget;
-//} 
-
-},{"three":4}],19:[function(require,module,exports){
+},{"cannon":1,"three":4}],17:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -77380,7 +77426,7 @@ function Avatar(id, userName, font) {
 }
 exports.default = Avatar;
 
-},{"./objects":22,"three":4}],20:[function(require,module,exports){
+},{"./objects":20,"three":4}],18:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -77425,7 +77471,7 @@ function Terrain(params = {}) {
 }
 exports.default = Terrain;
 
-},{"../constants":23,"three":4}],21:[function(require,module,exports){
+},{"../constants":21,"three":4}],19:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -77526,7 +77572,7 @@ function Tree() {
 }
 exports.default = Tree;
 
-},{"cannon":1,"three":4}],22:[function(require,module,exports){
+},{"cannon":1,"three":4}],20:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -77646,7 +77692,7 @@ function generateCampfire(ctx) {
 }
 exports.generateCampfire = generateCampfire;
 
-},{"../constants":23,"cannon":1,"three":4}],23:[function(require,module,exports){
+},{"../constants":21,"cannon":1,"three":4}],21:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BASE_ASSET_URL = 'https://raw.githubusercontent.com/focuswish/deeplearn-game/master/src/assets/';
@@ -77656,7 +77702,7 @@ exports.assets = {
     sky: `${exports.BASE_ASSET_URL}/galaxy.jpg`
 };
 
-},{}],24:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 "use strict";
 /**
  * @author mrdoob / http://mrdoob.com/
@@ -77802,7 +77848,7 @@ function PointerLockControls(camera, cannonBody, avatar) {
 ;
 exports.default = PointerLockControls;
 
-},{"cannon":1,"three":4}],25:[function(require,module,exports){
+},{"cannon":1,"three":4}],23:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const lodash_1 = require("lodash");
@@ -77844,4 +77890,4 @@ function segmentTopography(topography, matrix) {
 }
 exports.segmentTopography = segmentTopography;
 
-},{"lodash":3}]},{},[10]);
+},{"lodash":3}]},{},[8]);

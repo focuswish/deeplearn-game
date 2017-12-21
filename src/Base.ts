@@ -1,23 +1,9 @@
 import * as CANNON from 'cannon'
 import * as THREE from 'three'
 import { sample, flatten, findIndex, has, isEmpty } from 'lodash'
+import Sprite from './Sprite'
 
 export default function Base() {}
-
-Base.prototype.init = function(name, respawn) {
-  let { store } = this._base;
-  
-  if(!store[name]) store[name] = {}
-  
-  let cache = store[name]
-  
-  if(!cache.name) cache.name = name;
-  if(!cache.entities) cache.entities = []
-  if(!cache.visibleCount) cache.visibleCount = 0;
-  if(!cache.respawn && respawn) cache.respawn = respawn;
- 
-  return cache;
-}
 
 Base.prototype.getRandomPointOnPerimeter = function() {
   let avatarPerimeter = this.scene.getObjectByName('snowman/halo', true);
@@ -30,7 +16,9 @@ Base.prototype.getRandomPointOnPerimeter = function() {
   let vector = avatarPerimeter
     .getWorldPosition()
     .add(pointOnPerimeter)
-    .add(new THREE.Vector3(0, 0, -0.2))
+    
+
+  vector.setZ(this.base.getZ.apply(this, [vector.x, vector.y]))
 
   return vector
 }
@@ -42,9 +30,7 @@ Base.prototype.register = function(
   name = null, 
   respawn = null, 
   copyQuaternion = true
-) {
-    let { store } = this._base;
-    
+) {    
     // add to THREE
     this.scene.add(mesh)
 
@@ -54,20 +40,17 @@ Base.prototype.register = function(
       this.cannon.world.addBody(body)
     }
 
-    if(!name) return store;
-    
-    let cache = this.base.init.apply(this, [name, respawn])
-    
-    cache.entities.push({body, mesh, name, copyQuaternion})
-    
     return this;
 }
 
-Base.prototype.registerMesh = function(mesh) {
-  this.scene.add(mesh)
-}
-
 Base.prototype.removeMesh = function (mesh) {
+  console.log(`Removing mesh ${mesh.name} with distance ${mesh.userData.distance}`)
+
+  if(mesh.userData.body) {
+    let body = this.base.getCannonBodyById.apply(this, [mesh.userData.body]);
+    if(body) this.cannon.world.remove(body)
+  }
+
   function removeAssociatedObjects(child) {
       if(child.geometry) child.geometry.dispose()
       
@@ -90,122 +73,112 @@ Base.prototype.removeMesh = function (mesh) {
   
   return this;
 }
-
-Base.prototype.remove = function (entity) {
-  let cache = this._base.store[entity.name];
-
-  let { mesh, body } = entity;
-
-  this.base.removeMesh.apply(this, [mesh])
-
-  if(body) this.cannon.world.remove(body)
-    
-  let index = findIndex(cache.entities, entity)
-  if(index > -1) {
-    cache.entities.splice(index, 1)
-  }
-}
   
 Base.prototype.removeMeshesByName = function(name) {
-  let cache = this._base.store[name]
-  
-  if(!cache) return
+  let meshes = this.base.getObjectsByName.apply(this, [name])
 
-  let { entities } = cache;
-
-  entities.forEach((entity, i) => { 
-    this.base.remove.apply(this, [entity])
+  meshes.forEach(mesh => {
+    this.base.removeMesh.apply(this, [mesh])    
   })
-
-  cache.visibleCount = 0;
-  cache.entities = []
 
   return this;
 }
 
-Base.prototype.sync = function (name) {
-  if(!this._base.store[name]) return this;
+Base.prototype.getObjectsByName = function(name) {
+  return this.scene.children.filter(child => 
+    child.name === name
+  )
+}
 
-  let { entities } = this._base.store[name];
-    
-  entities.forEach((entity, i) => {
-    if(entity.body) {
-      entity.mesh.position.copy(entity.body.position)
-      if(entity.copyQuaternion) entity.mesh.quaternion.copy(entity.body.quaternion)
+Base.prototype.getCannonBodyById = function(id) {
+  return this.cannon.world.bodies.find(body => 
+    body.id === id
+  )
+}
+
+Base.prototype.sync = function (name) {
+  let meshes = this.base.getObjectsByName.apply(this, [name])
+
+  meshes.forEach(mesh => {
+    if(mesh.userData.body) {
+      let body = this.base.getCannonBodyById.apply(this, [mesh.userData.body])
+      if(body) {
+        mesh.position.copy(body.position)
+        mesh.quaternion.copy(body.quaternion)
+      }
     }
   })
 
   return this;
 }
 
-Base.prototype.get = (name) => {
-  if(!this._base.store[name]) return []
-
-  return this._base.store[name];
-}
-
 Base.prototype.getNearby = function () {
   return this._base.nearby
 }
 
-Base.prototype.getEntityById = function (id) {
-  let needle;
-
-  Object.keys(this._base.store).forEach(key => {
-    let entities = this._base.store[key].entities;
-    Object.keys(entities).forEach(key => {
-      if(entities[key].mesh.name === id) {
-        needle = entities[key];
-      }
-    })
-  })
-    
-  return needle;
-}
-
-Base.prototype.getNearbyObjects = function () {
+Base.prototype.getProximateMeshes = function () {
   let objects = this.scene.children
     .filter(child => 
       child.userData && 
       child.userData.selectable &&
       child.id !== this.avatar.id
-    ).map(object => ({
-      object, 
-      distance: this.avatar.position.distanceTo(object.position)
-    }))
-    .sort((a, b) => a.distance - b.distance)
+    ).map(child => Object.assign(child, {
+        userData: {
+          ...child.userData,
+          distance: this.avatar.position.distanceTo(child.position)
+        }
+      })
+    ).sort((a, b) => a.userData.distance - b.userData.distance)
 
   this._base.nearby = objects;
 
   return this;
 }
 
-Base.prototype.cullDistantObjects = function () {
-  let farAway = this._base.nearby.reverse()
+Base.prototype.cullDistantObjects = function (count = 10) {
+  let distantMeshes = this._base.nearby.reverse().filter(mesh => 
+    mesh.userData.type !== 'player'
+  )
 
-  farAway.slice(0, 10).forEach(entity => {
-    this.base.remove.apply(this, [entity])
+  distantMeshes.slice(0, count).forEach(mesh => {
+    this.base.removeMesh.apply(this, [mesh])
   })
 }
 
 Base.prototype.tick = function () {
-  let { store, frustum } = this._base;
+  console.log('tick')
+  let { frustum } = this._base;
     
-  this.base.getNearbyObjects.apply(this)
+  this.base.getProximateMeshes.apply(this)
+  let hero = this.scene.getObjectById(this.avatar.id)
 
-  let key = this.avatar.userData.id;
-    
-  if(Object.keys(this.data).length > 1) {  
-    this.socket.send.apply(this, [{
-      position: this.data[key].body.position,
-      velocity: this.data[key].body.velocity,
-      didSpawn: this.data[key].didSpawn,
-      timestamp: new Date().getTime() / 1000,
-      type: 'player',
-    }])
+  this.socket.send.apply(this, [{
+    position: hero.position,
+    velocity: hero.velocity,
+    timestamp: new Date().getTime() / 1000,
+    type: 'player',
+  }])
+  
+  if(this.scene.children.length > 100) {
+    this.base.cullDistantObjects.apply(this)
   }
 
-  if(Object.keys(store).length > 0) {
+  let distantMeshes = this._base.nearby.filter(mesh => 
+    mesh.userData.distance && mesh.userData.distance > 30
+  )
+
+  if(distantMeshes) {
+    distantMeshes.forEach(mesh => {
+      this.base.removeMesh.apply(this, [mesh])
+    })
+  }
+
+  if(!this._base.nearby || this._base.nearby.length < 20) {
+    this.physics.spawnBoxes.apply(this)
+    this.physics.spawnTrees.apply(this)
+  }
+
+  /*if(Object.keys(store).length > 0) {
     Object.keys(store).forEach(key => {
     let cache = store[key]
 
@@ -229,7 +202,7 @@ Base.prototype.tick = function () {
         }
       }
     })
-  }
+  }*/
 }
 
 
@@ -253,23 +226,11 @@ Base.prototype.update = function () {
 }
 
 Base.prototype.getPlayerById = function(id) {
-  const objects = this.scene.children;
-  return objects.find(o => o.userData && o.userData.id === id)
-}
-
-Base.prototype.getEntityByMesh = function(mesh) {
-  const { store } = this._base
-  Object.keys(store).map(key => {
-    let entities = store[key]
-
-    entities.forEach(entity => {
-      
-    })
-  })
+  return this.scene.children.find(o => o.userData && o.userData.id === id)
 }
 
 Base.prototype.getHeroTargetMesh = function() {
-  return this.avatar.userData.selected ? this.scene.getObjectById(this.avatar.userData.selected) : null
+  return this.avatar.userData.target ? this.scene.getObjectById(this.avatar.userData.target) : null
 }
 
 Base.prototype.getZ = function(x, y) {

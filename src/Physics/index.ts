@@ -11,7 +11,6 @@ import {
 } from 'lodash'
 import Tree from '../components/Tree'
 import * as uuid from 'uuid/v4'
-import Widget from '../Widget'
 
 Physics.prototype.spawnTrees = function() {
   let { terrain, scene } = this;

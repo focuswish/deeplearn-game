@@ -64,8 +64,6 @@ World.prototype.intro = async function() {
       if(input && input.value) {
         this.userName = input.value;
         container.parentElement.removeChild(container);
-        //body.style.backgroundImage = ''
-        //this.scene.background = this._assets.textures['gradient2']
         resolve()
       }
     }
@@ -115,6 +113,10 @@ World.prototype.update = function() {
       this.halo.visible = true;
       this.halo.position.set(x, y, z)
     }
+
+    if(!_heroTarget) {
+      this.halo.visible = false;
+    }
   
     if(players.length > 0) {
       players.forEach(key => {
@@ -146,7 +148,7 @@ World.prototype.init = function() {
     this.controls.enabled = true;
   }
   
-  window.addEventListener('resize', this.onWindowResize, false)
+  window.addEventListener('resize', this.onWindowResize.bind(this), false)
   document.addEventListener( 'pointerlockchange', pointerlockchange, false );
   document.addEventListener( 'mozpointerlockchange', pointerlockchange, false );
   document.addEventListener( 'webkitpointerlockchange', pointerlockchange, false );   
@@ -211,6 +213,8 @@ World.prototype.createAvatar = function() {
   this.scene.updateMatrixWorld()
   
   this.UI.init(avatar, this._assets.textures['gradient1'])
+  this.weapon.createIcon.apply(this, ['icelance'])
+  this.weapon.createIcon.apply(this, ['icelance'])
   
   this.physics.init.apply(this)
 

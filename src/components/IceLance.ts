@@ -1,6 +1,5 @@
 import * as CANNON from "cannon";
 import * as THREE from "three";
-import Widget from '../Widget'
 
 export default function IceLance() {}
 

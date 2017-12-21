@@ -28,8 +28,8 @@ Socket.prototype.handleMessage = function() {
       if(target && target.mesh) {
         let {x, y, z} = message.origin
         
-        this.weapon.icelance.apply(this, [
-          uuid(), 
+        this.weapon.fire.apply(this, [
+          'icelance', 
           new THREE.Vector3(x, y, z), 
           target.mesh
         ])       

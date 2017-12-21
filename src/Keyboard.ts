@@ -1,5 +1,4 @@
 import * as uuid from "uuid";
-import IceLance from "./components/IceLance";
 import * as THREE from 'three'
 import * as CANNON from 'cannon'
 
@@ -24,7 +23,7 @@ Keyboard.prototype.handleKeyDown = function() {
             nearbyIndex = 0;
           }
 
-          let selected = nearby()[nearbyIndex].object;
+          let selected = nearby()[nearbyIndex]
           if (selected) {
             nearbyIndex++;
             this.UI.target(selected)
@@ -44,8 +43,8 @@ Keyboard.prototype.handleKeyDown = function() {
         let origin = {...this.avatar.position}
         
         if(target) {
-          this.weapon.icelance.apply(this, [
-              uuid(), 
+          this.weapon.fire.apply(this, [
+              'icelance', 
               origin,
               target
             ]
