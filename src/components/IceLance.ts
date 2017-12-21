@@ -5,9 +5,10 @@ import Widget from '../Widget'
 export default function IceLance() {}
 
 IceLance.prototype.emit = function(id, origin, targetMesh) {
+  console.log(origin)
   let target = targetMesh.position;
   let originVec = new THREE.Vector3(origin.x, origin.y, origin.z)
-  let direction = originVec.distanceTo(target)
+  let direction = originVec.clone().distanceTo(target)
   let shape = new CANNON.Sphere(0.1)
   let geometry = new THREE.ConeGeometry(shape.radius, 8 * shape.radius, 32)
 
@@ -18,8 +19,13 @@ IceLance.prototype.emit = function(id, origin, targetMesh) {
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   mesh.name = 'icelance'
+  let startPosition = originVec.addScaledVector(
+    this.camera.getWorldDirection().clone(), 0.3
+  )
 
-  mesh.position.copy(originVec.addScaledVector(direction, 0.1))
+  console.log(startPosition)
+  
+  mesh.position.copy(startPosition)
   mesh.lookAt(target)
   mesh.rotateX(Math.PI / 2)
 
@@ -27,7 +33,7 @@ IceLance.prototype.emit = function(id, origin, targetMesh) {
     if (mesh.position.distanceTo(target) < 0.1) {
       this.scene.remove(mesh)
 
-      targetMesh.userData.health += -10;
+      targetMesh.userData.health += -5;
 
       if (targetMesh.userData.health < 0) {
 

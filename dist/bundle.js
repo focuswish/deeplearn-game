@@ -76583,8 +76583,8 @@ Keyboard.prototype.handleKeyDown = function () {
             value: this.scene
         }
     });
+    let avatarCanAttack = true;
     const nearby = this.base.getNearby.bind(this);
-    console.log('Keyboard.prototype.handleKeyDown', this);
     const icelance = new IceLance_1.default();
     window.addEventListener("keydown", (e) => {
         switch (e.code) {
@@ -76607,6 +76607,12 @@ Keyboard.prototype.handleKeyDown = function () {
                 }
                 break;
             case "Digit1":
+                if (!avatarCanAttack)
+                    return;
+                avatarCanAttack = false;
+                setTimeout(() => {
+                    avatarCanAttack = true;
+                }, 500);
                 let target = helpers.getSelected();
                 let origin = Object.assign({}, this.avatar.position);
                 if (target) {
@@ -77046,9 +77052,10 @@ const THREE = require("three");
 function IceLance() { }
 exports.default = IceLance;
 IceLance.prototype.emit = function (id, origin, targetMesh) {
+    console.log(origin);
     let target = targetMesh.position;
     let originVec = new THREE.Vector3(origin.x, origin.y, origin.z);
-    let direction = originVec.distanceTo(target);
+    let direction = originVec.clone().distanceTo(target);
     let shape = new CANNON.Sphere(0.1);
     let geometry = new THREE.ConeGeometry(shape.radius, 8 * shape.radius, 32);
     let material = new THREE.MeshLambertMaterial({ color: 0xa5f2f3 });
@@ -77056,13 +77063,15 @@ IceLance.prototype.emit = function (id, origin, targetMesh) {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.name = 'icelance';
-    mesh.position.copy(originVec.addScaledVector(direction, 0.1));
+    let startPosition = originVec.addScaledVector(this.camera.getWorldDirection().clone(), 0.3);
+    console.log(startPosition);
+    mesh.position.copy(startPosition);
     mesh.lookAt(target);
     mesh.rotateX(Math.PI / 2);
     mesh.onAfterRender = () => {
         if (mesh.position.distanceTo(target) < 0.1) {
             this.scene.remove(mesh);
-            targetMesh.userData.health += -10;
+            targetMesh.userData.health += -5;
             if (targetMesh.userData.health < 0) {
                 this.scene.remove(targetMesh);
                 this.UI.untarget();

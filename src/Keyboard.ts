@@ -18,10 +18,11 @@ Keyboard.prototype.handleKeyDown = function() {
       configurable: true,
       value: this.scene
     }
-  });
-  const nearby = this.base.getNearby.bind(this)
-  console.log('Keyboard.prototype.handleKeyDown', this)
+  })
 
+  let avatarCanAttack = true;
+
+  const nearby = this.base.getNearby.bind(this)
   const icelance = new IceLance()
   
   window.addEventListener("keydown", (e) => {
@@ -46,9 +47,17 @@ Keyboard.prototype.handleKeyDown = function() {
         }
         break;
       case "Digit1":
+        
+        if(!avatarCanAttack) return;
+
+        avatarCanAttack = false;
+        setTimeout(() => {
+          avatarCanAttack = true;
+        }, 500)
+        
         let target = helpers.getSelected();
         let origin = {...this.avatar.position}
-     
+        
         if(target) {
           icelance.emit.apply(this, [
               uuid(), 
@@ -56,7 +65,6 @@ Keyboard.prototype.handleKeyDown = function() {
               target
             ]
           )          
-          
           if(
             target.userData && 
             target.userData.id && 
