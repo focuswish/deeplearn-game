@@ -22,9 +22,11 @@ Assets.prototype.loadTextures = async function() {
 
   const images = ['crate.jpg', 'gradient2.png', 'gradient1.png']
 
-  const textures : any = await Promise.all([
-    images.map(image => load(image))
-  ])
+  const textures : any = await Promise.all(
+    images.map(image => 
+      load(image)
+    )
+  )
 
   this._assets.textures = {}
 

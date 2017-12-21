@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import Widget from './Widget'
 
 export default function Context() {
   this.scene = new THREE.Scene()
@@ -43,4 +44,7 @@ export default function Context() {
   
   this._base = base;
   this._assets = {}
+
+  this.UI = Object.create(Widget.prototype)
+  //Widget.apply(this.UI)
 }

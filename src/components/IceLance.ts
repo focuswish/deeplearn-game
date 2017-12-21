@@ -6,21 +6,22 @@ export default function IceLance() {}
 
 IceLance.prototype.emit = function(id, origin, targetMesh) {
   let target = targetMesh.position;
+  let originVec = new THREE.Vector3(origin.x, origin.y, origin.z)
+  let direction = originVec.distanceTo(target)
+  let shape = new CANNON.Sphere(0.1)
+  let geometry = new THREE.ConeGeometry(shape.radius, 8 * shape.radius, 32)
 
-  let direction = origin.distanceTo(target);
-  let shape = new CANNON.Sphere(0.1);
-  let geometry = new THREE.ConeGeometry(shape.radius, 8 * shape.radius, 32);
+  let material = new THREE.MeshLambertMaterial({ color: 0xa5f2f3 })
 
-  let material = new THREE.MeshLambertMaterial({ color: 0xa5f2f3 });
-  let mesh = new THREE.Mesh(geometry, material);
+  let mesh = new THREE.Mesh(geometry, material)
 
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-  mesh.name = "icelance";
+  mesh.name = 'icelance'
 
-  mesh.position.copy(origin.addScaledVector(direction, 0.1))
-  mesh.lookAt(target);
-  mesh.rotateX(Math.PI / 2);
+  mesh.position.copy(originVec)
+  mesh.lookAt(target)
+  mesh.rotateX(Math.PI / 2)
 
   mesh.onAfterRender = () => {
     if (mesh.position.distanceTo(target) < 0.1) {
@@ -29,12 +30,17 @@ IceLance.prototype.emit = function(id, origin, targetMesh) {
       targetMesh.userData.health += -10;
 
       if (targetMesh.userData.health < 0) {
+
         this.scene.remove(targetMesh);
-        Widget(this.avatar, this._assets.textures['gradient1']).untarget()
+        this.UI.untarget()
+
       } else {
-        Widget(this.avatar, this._assets.textures['gradient1']).update(targetMesh)
-        if(targetMesh.userData.type === 'player') {
-          const { body } = this.data[targetMesh.userData.id];
+        this.UI.update(targetMesh)
+        
+        if(targetMesh.userData.body) {
+          const body = this.world.bodies.find(body => 
+            body.id === targetMesh.userData.body
+          )
           if(body) {
             body.applyImpulse(
               new CANNON.Vec3(
@@ -43,8 +49,7 @@ IceLance.prototype.emit = function(id, origin, targetMesh) {
               body.position
             )
           }
-        }
-        
+        }        
       }
     } else {
       mesh.position.lerp(target, 0.2);

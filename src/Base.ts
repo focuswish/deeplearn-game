@@ -50,14 +50,17 @@ Base.prototype.register = function(
     this.scene.add(mesh)
 
     // add to CANNON
-    if(body) this.world.addBody(body)
+    if(body) {
+      mesh.userData.body = body.id
+      this.world.addBody(body)
+    }
 
     if(!name) return store;
     
     let cache = this.base.init.apply(this, [name, respawn])
-
+    
     cache.entities.push({body, mesh, name, copyQuaternion})
-    console.log(cache)
+    
     return this;
 }
 
@@ -201,7 +204,8 @@ Base.prototype.tick = function () {
       didSpawn: this.data[key].didSpawn,
       id: key,
       timestamp: new Date().getTime() / 1000,
-      type: 'player'
+      type: 'player',
+      userName: this.avatar.userData.name
     }
     
     this.ws.send(JSON.stringify(wsData))
@@ -231,9 +235,7 @@ Base.prototype.tick = function () {
         }
       })
     }
-      
     this.base.tick.apply(this)
-
     }, 1000)
 }
 
@@ -261,3 +263,15 @@ Base.prototype.getPlayerById = function(id) {
   const objects = this.scene.children;
   return objects.find(o => o.userData && o.userData.id === id)
 }
+
+Base.prototype.getEntityByMesh = function(mesh) {
+  const { store } = this._base
+  Object.keys(store).map(key => {
+    let entities = store[key]
+
+    entities.forEach(entity => {
+      
+    })
+  })
+}
+

@@ -26,7 +26,7 @@ function addPlayerName(font, textContent) {
   return textMesh
 }
 
-export default function Avatar(id, font) {
+export default function Avatar(id, userName, font) {
   let material = new THREE.MeshLambertMaterial({ 
     color: 0xfffafa,
     flatShading: true,
@@ -81,7 +81,7 @@ export default function Avatar(id, font) {
   twig1.geometry.translate(0, 0, 1.25)
   twig1.rotation.set(0, 0, Math.PI / 2)
   
-  let text = addPlayerName(font, id)
+  let text = addPlayerName(font, userName)
 
   middleSnowman.add(twig1)
   middleSnowman.add(text)
@@ -93,6 +93,7 @@ export default function Avatar(id, font) {
   avatar.userData.id = id;
   avatar.userData.selectable = true
   avatar.userData.isPlayer = true;
+  avatar.userData.name = userName;
 
   avatar.add(bottomSnowman)
   avatar.add(middleSnowman)

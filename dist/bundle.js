@@ -76087,10 +76087,28 @@ World.prototype.light = function () {
     this.scene.add(sun);
     return this;
 };
-World.prototype.create = function () {
+World.prototype.intro = function () {
     return __awaiter(this, void 0, void 0, function* () {
-        yield this.assets.load.apply(this);
-        return this;
+        let assets = yield this.assets.load.apply(this);
+        let body = document.querySelector('body');
+        body.style.backgroundImage = 'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)';
+        console.log(this);
+        this.UI.welcomeScreen();
+        let btn = document.querySelector('button');
+        let input = document.querySelector('input');
+        let container = document.getElementById('ui-container');
+        return new Promise((resolve, reject) => {
+            const onclick = (evt) => {
+                if (input && input.value) {
+                    this.userName = input.value;
+                    container.parentElement.removeChild(container);
+                    body.style.backgroundImage = '';
+                    this.scene.background = this._assets.textures['gradient2'];
+                    resolve();
+                }
+            };
+            btn.addEventListener('click', onclick);
+        });
     });
 };
 World.prototype.onResize = function () {
@@ -76138,7 +76156,6 @@ World.prototype.render = function () {
     };
 };
 World.prototype.init = function () {
-    this.scene.background = this._assets.textures['gradient2'];
     let pointerlockchange = (event) => {
         this.controls.enabled = true;
     };
@@ -76155,9 +76172,7 @@ World.prototype.init = function () {
     this.ws.onmessage = (event) => {
         let message = JSON.parse(event.data);
         if (message.type === 'icelance') {
-            console.log('message', message);
             let target = this.data[message.target];
-            console.log('this.base.getPlayerById.apply(this, [message.target])', target);
             if (target && target.mesh) {
                 let { x, y, z } = message.origin;
                 IceLance_1.default.prototype.emit.apply(this, [
@@ -76178,7 +76193,7 @@ World.prototype.init = function () {
             return;
         if (!cached.didSpawn) {
             this.data[message.id].didSpawn = true;
-            let snowman = Snowman_1.default(message.id, this._assets.font);
+            let snowman = Snowman_1.default(message.id, message.userName, this._assets.font);
             console.log(snowman);
             this.scene.add(snowman);
             let playerSphereBody = this.physics.createPlayerSphere.apply(this);
@@ -76210,7 +76225,7 @@ World.prototype.createHalo = function () {
     return this;
 };
 World.prototype.createAvatar = function () {
-    let avatar = Snowman_1.default(uuid(), this._assets.font);
+    let avatar = Snowman_1.default(uuid(), this.userName, this._assets.font);
     let uid = avatar.userData.id;
     this.data[uid] = {};
     this.data[uid].mesh = avatar;
@@ -76220,12 +76235,13 @@ World.prototype.createAvatar = function () {
     this.scene.add(this.data[uid].mesh);
     this.avatar = this.data[uid].mesh;
     this.scene.updateMatrixWorld();
+    this.UI.init(avatar, this._assets.textures['gradient1']);
     this.physics.init.apply(this);
     return this;
 };
 let world = new World();
 console.log(world);
-world.create().then(() => {
+world.intro().then(() => {
     world.light().createAvatar().init();
 });
 exports.default = World;
@@ -76263,9 +76279,7 @@ Assets.prototype.loadTextures = function () {
             loader.load(constants_1.BASE_ASSET_URL + name, texture => resolve(texture));
         });
         const images = ['crate.jpg', 'gradient2.png', 'gradient1.png'];
-        const textures = yield Promise.all([
-            images.map(image => load(image))
-        ]);
+        const textures = yield Promise.all(images.map(image => load(image)));
         this._assets.textures = {};
         textures.forEach((texture, i) => {
             texture.magFilter = THREE.NearestFilter;
@@ -76340,13 +76354,14 @@ Base.prototype.register = function (mesh, body, name = null, respawn = null, cop
     // add to THREE
     this.scene.add(mesh);
     // add to CANNON
-    if (body)
+    if (body) {
+        mesh.userData.body = body.id;
         this.world.addBody(body);
+    }
     if (!name)
         return store;
     let cache = this.base.init.apply(this, [name, respawn]);
     cache.entities.push({ body, mesh, name, copyQuaternion });
-    console.log(cache);
     return this;
 };
 Base.prototype.registerMesh = function (mesh) {
@@ -76458,7 +76473,8 @@ Base.prototype.tick = function () {
             didSpawn: this.data[key].didSpawn,
             id: key,
             timestamp: new Date().getTime() / 1000,
-            type: 'player'
+            type: 'player',
+            userName: this.avatar.userData.name
         };
         this.ws.send(JSON.stringify(wsData));
         if (Object.keys(store).length > 0) {
@@ -76497,11 +76513,20 @@ Base.prototype.getPlayerById = function (id) {
     const objects = this.scene.children;
     return objects.find(o => o.userData && o.userData.id === id);
 };
+Base.prototype.getEntityByMesh = function (mesh) {
+    const { store } = this._base;
+    Object.keys(store).map(key => {
+        let entities = store[key];
+        entities.forEach(entity => {
+        });
+    });
+};
 
 },{"lodash":2,"three":3}],12:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
+const Widget_1 = require("./Widget");
 function Context() {
     this.scene = new THREE.Scene();
     //this.scene.background = new THREE.Color(0x191970)
@@ -76532,16 +76557,17 @@ function Context() {
     };
     this._base = base;
     this._assets = {};
+    this.UI = Object.create(Widget_1.default.prototype);
+    //Widget.apply(this.UI)
 }
 exports.default = Context;
 
-},{"three":3}],13:[function(require,module,exports){
+},{"./Widget":15,"three":3}],13:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const uuid = require("uuid");
 const IceLance_1 = require("./components/IceLance");
 const helpers_1 = require("./util/helpers");
-const Widget_1 = require("./Widget");
 function Keyboard() { }
 Keyboard.prototype.handleKeyDown = function () {
     let nearbyIndex = 0;
@@ -76558,6 +76584,8 @@ Keyboard.prototype.handleKeyDown = function () {
         }
     });
     const nearby = this.base.getNearby.bind(this);
+    console.log('Keyboard.prototype.handleKeyDown', this);
+    const icelance = new IceLance_1.default();
     window.addEventListener("keydown", (e) => {
         switch (e.code) {
             case "Equal":
@@ -76574,16 +76602,19 @@ Keyboard.prototype.handleKeyDown = function () {
                     let selected = nearby()[nearbyIndex].object;
                     if (selected) {
                         nearbyIndex++;
-                        Widget_1.default(this.avatar, this._assets.textures['gradient1']).target(selected, this.avatar);
+                        this.UI.target(selected);
                     }
                 }
                 break;
             case "Digit1":
                 let target = helpers.getSelected();
-                let origin = this.avatar.position.clone();
-                console.log('target', target);
+                let origin = Object.assign({}, this.avatar.position);
                 if (target) {
-                    IceLance_1.default.prototype.emit.apply(this, [uuid(), origin, target]);
+                    icelance.emit.apply(this, [
+                        uuid(),
+                        origin,
+                        target
+                    ]);
                     if (target.userData &&
                         target.userData.id &&
                         target.userData.type === 'player') {
@@ -76591,7 +76622,8 @@ Keyboard.prototype.handleKeyDown = function () {
                             target: target.userData.id,
                             origin: origin,
                             timestamp: new Date().getTime() / 1000,
-                            type: "icelance"
+                            type: "icelance",
+                            userName: this.avatar.userData.name
                         }));
                     }
                 }
@@ -76601,7 +76633,7 @@ Keyboard.prototype.handleKeyDown = function () {
 };
 exports.default = Keyboard;
 
-},{"./Widget":15,"./components/IceLance":16,"./util/helpers":23,"uuid":4}],14:[function(require,module,exports){
+},{"./components/IceLance":16,"./util/helpers":23,"uuid":4}],14:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const CANNON = require("cannon");
@@ -76609,7 +76641,6 @@ const THREE = require("three");
 const objects_1 = require("../components/objects");
 const lodash_1 = require("lodash");
 const Tree_1 = require("../components/Tree");
-const Widget_1 = require("../Widget");
 Physics.prototype.spawnTrees = function () {
     let { terrain, scene } = this;
     let register = this.base.register.bind(this);
@@ -76752,19 +76783,22 @@ Physics.prototype.getClickTarget = function (event) {
         child.id !== this.avatar.id), true);
     const getParentMesh = (mesh) => {
         if (mesh.parent && mesh.parent.type !== 'Scene') {
-            return this.physics.getParentMesh(mesh.parent);
+            return getParentMesh(mesh.parent);
         }
         return mesh;
     };
     if (!lodash_1.isEmpty(intersects)) {
         let intersect = intersects[0];
-        Widget_1.default(this.avatar, this._assets.textures.gradient2).target(getParentMesh(intersect.object));
+        this.UI.target(getParentMesh(intersect.object));
     }
     return intersects;
 };
 Physics.prototype.init = function () {
+    let uid = this.avatar.userData.id;
     this.physics.createDefaultPhysicsWorld.apply(this);
-    this.data[this.avatar.userData.id].body = this.physics.createPlayerSphere.apply(this);
+    let body = this.physics.createPlayerSphere.apply(this);
+    this.data[uid].body = body;
+    this.data[uid].mesh.userData.body = body.id;
     this.physics.createPhysicsContactMaterial.apply(this);
     this.physics.addHeightfield.apply(this);
     this.physics.spawnBoxes.apply(this);
@@ -76795,8 +76829,17 @@ Physics.prototype.init = function () {
 function Physics() { }
 exports.Physics = Physics;
 
-},{"../Widget":15,"../components/Tree":19,"../components/objects":20,"cannon":1,"lodash":2,"three":3}],15:[function(require,module,exports){
+},{"../components/Tree":19,"../components/objects":20,"cannon":1,"lodash":2,"three":3}],15:[function(require,module,exports){
 "use strict";
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) if (e.indexOf(p[i]) < 0)
+            t[p[i]] = s[p[i]];
+    return t;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
 const healthbar = {
@@ -76844,13 +76887,15 @@ const selectedObjectInner = {
         marginTop: '35px'
     }
 };
-function Widget(avatar, gradient) {
+function Widget() { }
+exports.default = Widget;
+Widget.prototype.init = function (avatar, gradient) {
     let bar = () => document.getElementById('ui-avatar');
     let div = () => document.getElementById('ui-target');
-    if (!bar()) {
+    if (avatar && !bar()) {
         this.create(healthbar).create(healthbarInner).reset();
     }
-    if (!div()) {
+    if (avatar && !div()) {
         this.create(selectedObject).create(selectedObjectInner).reset();
     }
     this.cache = {};
@@ -76858,7 +76903,7 @@ function Widget(avatar, gradient) {
     this.bar = bar();
     this.avatar = avatar;
     this.gradient = gradient;
-}
+};
 Widget.prototype.reset = function () {
     this.element = null;
     return this;
@@ -76875,8 +76920,9 @@ Widget.prototype.set = function (element, props) {
     return this;
 };
 Widget.prototype.create = function (props = {}, parent = null) {
-    let mergedProps = Object.assign({}, props);
-    let element = document.createElement('div');
+    let { nodeName } = props, rest = __rest(props, ["nodeName"]);
+    let mergedProps = Object.assign({}, rest);
+    let element = document.createElement(nodeName || 'div');
     this.set.apply(this, [element, mergedProps]);
     let container = this.element ? this.element : document.querySelector('body');
     container.appendChild(element);
@@ -76897,10 +76943,6 @@ function meshToDataURL(mesh, gradient) {
     mesh.scale.set(1.2, 1.2, 1.2);
     scene.add(light);
     scene.add(mesh);
-    //const loader = new THREE.TextureLoader()
-    //const load = new Promise((resolve, reject) => {
-    //  loader.load(BASE_ASSET_URL + 'gradient.png', (texture) => resolve(texture))
-    //})
     scene.background = gradient;
     let renderer = new THREE.WebGLRenderer({
         antialias: true,
@@ -76910,7 +76952,6 @@ function meshToDataURL(mesh, gradient) {
     renderer.setSize(100, 100);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setClearColor(0x000000, 0.0);
-    //renderer.domElement.style.backgroundImage = 'linear-gradient(0deg, #ACCBEE 0%, #E7F0FD 100%)'
     renderer.render(scene, camera);
     let url = renderer.domElement.toDataURL();
     renderer.forceContextLoss();
@@ -76942,7 +76983,7 @@ Widget.prototype.untarget = function () {
     elem1.parentElement.removeChild(elem1);
     let elem2 = document.getElementById('ui-target');
     elem2.parentElement.removeChild(elem2);
-    this.create(selectedObject).create(selectedObjectInner).reset();
+    this.reset().create(selectedObject).create(selectedObjectInner).reset();
     this.div = document.getElementById('ui-target');
 };
 Widget.prototype.update = function (mesh) {
@@ -76955,32 +76996,67 @@ Widget.prototype.update = function (mesh) {
         }
     }
 };
-function default_1(avatar, gradient) {
-    let widget = Object.create(Widget.prototype);
-    Widget.apply(widget, [avatar, gradient]);
-    return widget;
-}
-exports.default = default_1;
+Widget.prototype.welcomeScreen = function (onclick) {
+    let uiContainer = this.create({
+        id: 'ui-container',
+        style: {
+            position: 'absolute',
+            transform: 'translate(-50%, 0)',
+            top: '50%',
+            left: '50%'
+        }
+    }).create({
+        nodeName: 'input',
+        id: 'ui-avatar-name',
+        placeholder: 'Your name',
+        style: {
+            width: '200px',
+            height: '30px',
+            backgroundColor: '#fafafa',
+            border: 0,
+            outline: 0,
+            borderRadius: '3px',
+            marginRight: '20px',
+            padding: '0 8px',
+        }
+    }).create({
+        nodeName: 'button',
+        textContent: 'Submit',
+        style: {
+            height: '30px',
+            width: '90px',
+            backgroundColor: 'fafafa',
+            border: '1px solid #ddd',
+            borderRadius: '3px'
+        }
+    }).reset();
+    return this;
+};
+//export default function(avatar, gradient) {
+//    let widget = Object.create(Widget.prototype)
+//    Widget.apply(widget, [avatar, gradient])
+//    return widget;
+//} 
 
 },{"three":3}],16:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const CANNON = require("cannon");
 const THREE = require("three");
-const Widget_1 = require("../Widget");
 function IceLance() { }
 exports.default = IceLance;
 IceLance.prototype.emit = function (id, origin, targetMesh) {
     let target = targetMesh.position;
-    let direction = origin.distanceTo(target);
+    let originVec = new THREE.Vector3(origin.x, origin.y, origin.z);
+    let direction = originVec.distanceTo(target);
     let shape = new CANNON.Sphere(0.1);
     let geometry = new THREE.ConeGeometry(shape.radius, 8 * shape.radius, 32);
     let material = new THREE.MeshLambertMaterial({ color: 0xa5f2f3 });
     let mesh = new THREE.Mesh(geometry, material);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    mesh.name = "icelance";
-    mesh.position.copy(origin.addScaledVector(direction, 0.1));
+    mesh.name = 'icelance';
+    mesh.position.copy(originVec);
     mesh.lookAt(target);
     mesh.rotateX(Math.PI / 2);
     mesh.onAfterRender = () => {
@@ -76989,12 +77065,12 @@ IceLance.prototype.emit = function (id, origin, targetMesh) {
             targetMesh.userData.health += -10;
             if (targetMesh.userData.health < 0) {
                 this.scene.remove(targetMesh);
-                Widget_1.default(this.avatar, this._assets.textures['gradient1']).untarget();
+                this.UI.untarget();
             }
             else {
-                Widget_1.default(this.avatar, this._assets.textures['gradient1']).update(targetMesh);
-                if (targetMesh.userData.type === 'player') {
-                    const { body } = this.data[targetMesh.userData.id];
+                this.UI.update(targetMesh);
+                if (targetMesh.userData.body) {
+                    const body = this.world.bodies.find(body => body.id === targetMesh.userData.body);
                     if (body) {
                         body.applyImpulse(new CANNON.Vec3(10, 10, 10), body.position);
                     }
@@ -77009,7 +77085,7 @@ IceLance.prototype.emit = function (id, origin, targetMesh) {
     return { mesh };
 };
 
-},{"../Widget":15,"cannon":1,"three":3}],17:[function(require,module,exports){
+},{"cannon":1,"three":3}],17:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = require("three");
@@ -77029,7 +77105,7 @@ function addPlayerName(font, textContent) {
     textMesh.geometry.translate(0, 1.25, 0);
     return textMesh;
 }
-function Avatar(id, font) {
+function Avatar(id, userName, font) {
     let material = new THREE.MeshLambertMaterial({
         color: 0xfffafa,
         flatShading: true,
@@ -77060,7 +77136,7 @@ function Avatar(id, font) {
     twig1.scale.set(0.4, 0.4, 0.4);
     twig1.geometry.translate(0, 0, 1.25);
     twig1.rotation.set(0, 0, Math.PI / 2);
-    let text = addPlayerName(font, id);
+    let text = addPlayerName(font, userName);
     middleSnowman.add(twig1);
     middleSnowman.add(text);
     let avatar = new THREE.Group();
@@ -77070,6 +77146,7 @@ function Avatar(id, font) {
     avatar.userData.id = id;
     avatar.userData.selectable = true;
     avatar.userData.isPlayer = true;
+    avatar.userData.name = userName;
     avatar.add(bottomSnowman);
     avatar.add(middleSnowman);
     avatar.add(topSnowman);

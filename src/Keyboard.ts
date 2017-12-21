@@ -2,7 +2,7 @@ import * as uuid from "uuid";
 import IceLance from "./components/IceLance";
 import Helpers from "./util/helpers";
 import Widget from "./Widget";
-
+import * as THREE from 'three'
 function Keyboard() {}
 
 Keyboard.prototype.handleKeyDown = function() {
@@ -20,6 +20,10 @@ Keyboard.prototype.handleKeyDown = function() {
     }
   });
   const nearby = this.base.getNearby.bind(this)
+  console.log('Keyboard.prototype.handleKeyDown', this)
+
+  const icelance = new IceLance()
+  
   window.addEventListener("keydown", (e) => {
     switch (e.code) {
       case "Equal":
@@ -29,7 +33,6 @@ Keyboard.prototype.handleKeyDown = function() {
         this.zoom++;
         break;
       case "Backquote":
-  
         if (nearby()) {
           if (nearby().length <= nearbyIndex) {
             nearbyIndex = 0;
@@ -38,18 +41,22 @@ Keyboard.prototype.handleKeyDown = function() {
           let selected = nearby()[nearbyIndex].object;
           if (selected) {
             nearbyIndex++;
-            Widget(this.avatar, this._assets.textures['gradient1']).target(selected, this.avatar)
+            this.UI.target(selected)
           }
         }
         break;
       case "Digit1":
         let target = helpers.getSelected();
-        let origin = this.avatar.position.clone();
-        
-        console.log('target', target)
-
+        let origin = {...this.avatar.position}
+     
         if(target) {
-          IceLance.prototype.emit.apply(this, [uuid(), origin, target]);          
+          icelance.emit.apply(this, [
+              uuid(), 
+              origin,
+              target
+            ]
+          )          
+          
           if(
             target.userData && 
             target.userData.id && 
@@ -60,7 +67,8 @@ Keyboard.prototype.handleKeyDown = function() {
                 target: target.userData.id,
                 origin: origin,
                 timestamp: new Date().getTime() / 1000,
-                type: "icelance"
+                type: "icelance",
+                userName: this.avatar.userData.name
               })
             );
           }

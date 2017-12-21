@@ -51,14 +51,17 @@ const selectedObjectInner = {
   }
 }
 
-function Widget(avatar, gradient) {
+export default function Widget() {}
+
+Widget.prototype.init = function(avatar, gradient) {
+ 
   let bar = () => document.getElementById('ui-avatar')
   let div = () => document.getElementById('ui-target')
 
-  if(!bar()) {
+  if(avatar && !bar()) {
     this.create(healthbar).create(healthbarInner).reset()
   }
-  if(!div()) {
+  if(avatar && !div()) {
     this.create(selectedObject).create(selectedObjectInner).reset()
   }
 
@@ -87,12 +90,13 @@ Widget.prototype.set = function(element, props) {
 }
 
   
-Widget.prototype.create = function(props = {}, parent = null) {
+Widget.prototype.create = function(props : any = {}, parent = null) {
+  let { nodeName, ...rest} = props;
   let mergedProps = {
-    ...props,
+     ...rest
   }
     
-  let element = document.createElement('div')
+  let element = document.createElement(nodeName || 'div')
   this.set.apply(this, [element, mergedProps])
   let container  = this.element ? this.element : document.querySelector('body')
   container.appendChild(element) 
@@ -119,10 +123,6 @@ function meshToDataURL (mesh, gradient) {
 
   scene.add(light)
   scene.add(mesh)
-  //const loader = new THREE.TextureLoader()
-  //const load = new Promise((resolve, reject) => {
-  //  loader.load(BASE_ASSET_URL + 'gradient.png', (texture) => resolve(texture))
-  //})
   
   scene.background = gradient;
 
@@ -135,7 +135,6 @@ function meshToDataURL (mesh, gradient) {
   renderer.setSize( 100, 100 )
   renderer.setPixelRatio( window.devicePixelRatio );
   renderer.setClearColor(0x000000, 0.0)
-  //renderer.domElement.style.backgroundImage = 'linear-gradient(0deg, #ACCBEE 0%, #E7F0FD 100%)'
   
   renderer.render(scene, camera)
   let url = renderer.domElement.toDataURL()
@@ -175,7 +174,7 @@ Widget.prototype.untarget = function() {
   let elem2 = document.getElementById('ui-target')
   elem2.parentElement.removeChild(elem2);
 
-  this.create(selectedObject).create(selectedObjectInner).reset()
+  this.reset().create(selectedObject).create(selectedObjectInner).reset()
   this.div = document.getElementById('ui-target')
 }
 
@@ -189,8 +188,47 @@ Widget.prototype.update = function(mesh) {
   }
 }
 
-export default function(avatar, gradient) {
-    let widget = Object.create(Widget.prototype)
-    Widget.apply(widget, [avatar, gradient])
-    return widget;
+Widget.prototype.welcomeScreen = function(onclick) {
+  let uiContainer = this.create({
+    id: 'ui-container',
+    style: {
+      position: 'absolute',
+      transform: 'translate(-50%, 0)',
+      top: '50%',
+      left: '50%'
+    }
+  }).create({
+    nodeName: 'input',
+    id: 'ui-avatar-name',
+    placeholder: 'Your name',
+    style: {
+      width: '200px',
+      height: '30px',
+      backgroundColor: '#fafafa',
+      border: 0,
+      outline: 0,
+      borderRadius: '3px',
+      marginRight: '20px',
+      padding: '0 8px',
+    }
+  }).create({
+    nodeName: 'button',
+    textContent: 'Submit',
+    style: {
+      height: '30px',
+      width: '90px',
+      backgroundColor: 'fafafa',
+      border: '1px solid #ddd',
+      borderRadius: '3px'
+    }
+  }).reset()
+
+
+  return this;
 }
+
+//export default function(avatar, gradient) {
+//    let widget = Object.create(Widget.prototype)
+//    Widget.apply(widget, [avatar, gradient])
+//    return widget;
+//}

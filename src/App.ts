@@ -40,7 +40,6 @@ World.prototype.assets = Object.create(Assets.prototype)
 World.prototype.physics = Object.create(Physics.prototype)
 World.prototype.base = Object.create(Base.prototype)
 
-
 World.prototype.light = function() {
   let light = new THREE.HemisphereLight(0xfffafa,0x000000, .7)
   let sun = new THREE.DirectionalLight( 0xcdc1c5, 0.9);
@@ -53,10 +52,31 @@ World.prototype.light = function() {
   return this
 }
 
-World.prototype.create = async function() {
-  await this.assets.load.apply(this)
+World.prototype.intro = async function() {
+  let assets = await this.assets.load.apply(this)
 
-  return this;
+  let body = document.querySelector('body')
+  body.style.backgroundImage = 'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)'
+  console.log(this)
+  this.UI.welcomeScreen()
+
+  let btn = document.querySelector('button')
+  let input  = document.querySelector('input')
+  let container = document.getElementById('ui-container')
+
+  return new Promise((resolve, reject) => {
+    const onclick = (evt) => {
+      if(input && input.value) {
+        this.userName = input.value;
+        container.parentElement.removeChild(container);
+        body.style.backgroundImage = ''
+        this.scene.background = this._assets.textures['gradient2']
+        resolve()
+      }
+    }
+  
+    btn.addEventListener('click', onclick)
+  })
 }
 
 World.prototype.onResize = function() {
@@ -120,7 +140,6 @@ World.prototype.render = function() {
 }
 
 World.prototype.init = function() {
-  this.scene.background = this._assets.textures['gradient2']
   
   let pointerlockchange = (event) => {
     this.controls.enabled = true;
@@ -148,15 +167,8 @@ World.prototype.init = function() {
   this.ws.onmessage = (event) => {
     let message = JSON.parse(event.data)
 
-    if(message.type === 'icelance') {
-      
-      console.log('message',message)
-      
+    if(message.type === 'icelance') {      
       let target = this.data[message.target]
-      
-      console.log('this.base.getPlayerById.apply(this, [message.target])',
-        target
-      )
 
       if(target && target.mesh) {
         let {x, y, z} = message.origin
@@ -180,7 +192,7 @@ World.prototype.init = function() {
 
     if(!cached.didSpawn) {
       this.data[message.id].didSpawn = true;
-      let snowman = Snowman(message.id, this._assets.font)
+      let snowman = Snowman(message.id, message.userName, this._assets.font)
       console.log(snowman)
       this.scene.add(snowman)
 
@@ -231,6 +243,7 @@ World.prototype.createHalo = function() {
 World.prototype.createAvatar = function() {
   let avatar = Snowman(
     uuid(), 
+    this.userName,
     this._assets.font
   )
   let uid = avatar.userData.id;
@@ -240,11 +253,15 @@ World.prototype.createAvatar = function() {
   this.data[uid].didSpawn = false;
   this.data[uid].id = avatar.name
   this.data[uid].timestamp = new Date().getTime() / 1000
- 
+
   this.scene.add(this.data[uid].mesh)
   this.avatar = this.data[uid].mesh;
   this.scene.updateMatrixWorld()
+  
+  this.UI.init(avatar, this._assets.textures['gradient1'])
+  
   this.physics.init.apply(this)
+
   return this;
 }
 
@@ -259,13 +276,9 @@ declare global {
 
 
 let world = new World()
-
 console.log(world)
-
-world.create().then(() => {
+world.intro().then(() => {
   world.light().createAvatar().init()
 })
 
 export default World;
-
-

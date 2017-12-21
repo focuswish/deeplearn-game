@@ -155,6 +155,7 @@ Physics.prototype.spawnBoxes = function() {
     //let {x,y} = ctx.avatar.position.clone().add(offset)
     let geometry = new THREE.BoxGeometry(1, 1, 1)
     let { vertices } = geometry;
+
     vertices.forEach(vector => {
       anchor.add(vector)
       let box = Box()
@@ -209,21 +210,21 @@ Physics.prototype.getClickTarget = function(event) {
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1; 
 
-   let raycaster = new THREE.Raycaster();
-   raycaster.setFromCamera(mouse, this.camera);
+  let raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, this.camera);
 
-   let intersects = raycaster.intersectObjects(
-     this.scene.children.filter(child => 
-        child.userData && 
-        child.userData.selectable &&
-        child.id !== this.avatar.id
-     ),
-     true
-   )
+  let intersects = raycaster.intersectObjects(
+    this.scene.children.filter(child => 
+      child.userData && 
+      child.userData.selectable &&
+      child.id !== this.avatar.id
+    ),
+    true
+  )
   
   const getParentMesh = (mesh) => {
     if(mesh.parent && mesh.parent.type !== 'Scene') {
-      return this.physics.getParentMesh(mesh.parent)
+      return getParentMesh(mesh.parent)
     }
     
     return mesh
@@ -232,7 +233,7 @@ Physics.prototype.getClickTarget = function(event) {
   if(!isEmpty(intersects)) {
     let intersect = intersects[0]
 
-    Widget(this.avatar, this._assets.textures.gradient2).target(
+    this.UI.target(
       getParentMesh(intersect.object)
     )  
   }
@@ -241,8 +242,14 @@ Physics.prototype.getClickTarget = function(event) {
 }
  
 Physics.prototype.init = function() {  
+  let uid = this.avatar.userData.id
   this.physics.createDefaultPhysicsWorld.apply(this)
-  this.data[this.avatar.userData.id].body = this.physics.createPlayerSphere.apply(this)  
+
+  let body = this.physics.createPlayerSphere.apply(this)
+  
+  this.data[uid].body = body;
+  this.data[uid].mesh.userData.body = body.id;
+
   this.physics.createPhysicsContactMaterial.apply(this)
   this.physics.addHeightfield.apply(this)
   this.physics.spawnBoxes.apply(this)
