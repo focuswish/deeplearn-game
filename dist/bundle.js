@@ -77056,7 +77056,7 @@ IceLance.prototype.emit = function (id, origin, targetMesh) {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.name = 'icelance';
-    mesh.position.copy(originVec);
+    mesh.position.copy(originVec.addScaledVector(direction, 0.1));
     mesh.lookAt(target);
     mesh.rotateX(Math.PI / 2);
     mesh.onAfterRender = () => {
@@ -77072,7 +77072,7 @@ IceLance.prototype.emit = function (id, origin, targetMesh) {
                 if (targetMesh.userData.body) {
                     const body = this.world.bodies.find(body => body.id === targetMesh.userData.body);
                     if (body) {
-                        body.applyImpulse(new CANNON.Vec3(10, 10, 10), body.position);
+                        body.applyImpulse(direction, body.position);
                     }
                 }
             }

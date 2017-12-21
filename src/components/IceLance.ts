@@ -19,7 +19,7 @@ IceLance.prototype.emit = function(id, origin, targetMesh) {
   mesh.receiveShadow = true;
   mesh.name = 'icelance'
 
-  mesh.position.copy(originVec)
+  mesh.position.copy(originVec.addScaledVector(direction, 0.1))
   mesh.lookAt(target)
   mesh.rotateX(Math.PI / 2)
 
@@ -43,9 +43,7 @@ IceLance.prototype.emit = function(id, origin, targetMesh) {
           )
           if(body) {
             body.applyImpulse(
-              new CANNON.Vec3(
-                10,10,10
-              ),
+              direction,
               body.position
             )
           }
