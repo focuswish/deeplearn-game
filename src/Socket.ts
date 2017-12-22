@@ -20,7 +20,6 @@ Socket.prototype.send = function(data) {
 Socket.prototype.handleMessage = function() {
   this._socket.ws.onmessage = (event) => {
     let message = JSON.parse(event.data)
-    console.log(message)
     if(message.type === 'icelance') {      
       let target = this.data[message.target]
   
@@ -62,7 +61,7 @@ Socket.prototype.handleMessage = function() {
   
     let nextPosition = new THREE.Vector3(position.x, position.y, position.z)
     let nextVelocity = new CANNON.Vec3(velocity.x, velocity.y, velocity.z)
-    console.log(this.data)
+
     cached.body.position.copy(nextPosition)
     cached.body.velocity.copy(nextVelocity)
   };  

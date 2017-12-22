@@ -1,63 +1,58 @@
 import * as THREE from 'three'
 import { BASE_ASSET_URL } from '../constants'
 
-function Terrain (params = {}) {
-  let terrain : any = {
+function Terrain (params) {
+
+  Object.assign(this, {
     color: 0xE1A95F, 
     asset: null, 
     flat: false,
     position: [0, 0, 0],
-    altitude: null,
-    ...params
-  }
+    worldSize: 100,
+    segments: 100,
+  }, params)
+
+  //let sand = new THREE.Color(0xE1A95F)
+  //let dirt = new THREE.Color(0xD2B48C)
+  this.matrix = [
+    this.worldSize,
+    this.worldSize,
+    this.segments,
+    this.segments
+  ]
   
-  let texture;
+}
 
-  if(terrain.asset) {
-    texture = new THREE.TextureLoader().load(BASE_ASSET_URL + terrain.asset); 
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(64, 64);
-  }
-  let sand = new THREE.Color(0xE1A95F)
-  let dirt = new THREE.Color(0xD2B48C)
-  let colorArray = sand.toArray()
-
+Terrain.prototype.generate = function() {
   let material = new THREE.MeshStandardMaterial ({
-    color: terrain.color,    
+    color: this.color,    
     flatShading: true,
     metalness: 0,
     vertexColors: THREE.FaceColors,
-    map: texture ? texture : null
   })
 
-  let matrix = [100, 100, 100, 100]
-  let rows = matrix[2]
-  let columns = matrix[3]
+  let geometry = new THREE.PlaneGeometry(...this.matrix);  
 
-  let geometry = new THREE.PlaneGeometry(...matrix);  
-  if(terrain.altitude) {
+  if(this.heightmap) {
 
     let index = 0;
     
-    for (let i = 0; i <= rows; i++) { 
-      for (let j = 0; j <= columns; j++) { 
-        let alt = terrain.altitude[i][j];
-        //let alt = 0;
+    for (let i = 0; i <= this.segments; i++) { 
+      for (let j = 0; j <= this.segments; j++) { 
+        let alt = this.heightmap[i][j];
         geometry.vertices[index].setZ(alt)  
         index++;
       } 
     }
   }
 
-
-  let mesh = new THREE.Mesh(
+  this.mesh = new THREE.Mesh(
     geometry, 
     material
   )
 
-  mesh.geometry.translate(...terrain.position)
-  return mesh;
+  this.mesh.geometry.translate(...this.position)
+  return this;
 }
 
 export default Terrain

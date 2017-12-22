@@ -8,8 +8,8 @@ import Sprite from './Sprite'
 
 export default function Context() {
   this.scene = new THREE.Scene()
-  this.scene.background = new THREE.Color(0x191970)
-  this.scene.fog = new THREE.FogExp2( 0x000000, 0.0025 * 30);
+  //this.scene.background = new THREE.Color(0x191970)
+  this.scene.fog = new THREE.FogExp2( 0x000000, 0.1);
 
   this.camera = new THREE.PerspectiveCamera(
     75, 
@@ -37,7 +37,7 @@ export default function Context() {
   this.renderer.setPixelRatio( window.devicePixelRatio );
   this.renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(this.renderer.domElement);
-  this.terrain = {}
+  this._terrain = {}
   
   this.data = {}
   this.tiles = []

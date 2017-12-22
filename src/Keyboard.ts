@@ -19,6 +19,9 @@ Keyboard.prototype.handleKeyDown = function() {
       case "Minus":
         this.zoom++;
         break;
+      case "Space":
+        console.log(this)
+        break;
       case "Backquote":
         if (nearby()) {
           if (nearby().length <= nearbyIndex) {
@@ -64,6 +67,37 @@ Keyboard.prototype.handleKeyDown = function() {
           }
         }
         break;
+        case "Digit2":
+        
+        if(!avatarCanAttack) return;
+
+        avatarCanAttack = false;
+        setTimeout(() => {
+          avatarCanAttack = true;
+        }, 500)
+        
+        let target2 = this.base.getHeroTargetMesh.apply(this)
+        let origin2 = {...this.avatar.position}
+        
+        if(target2) {
+          this.weapon.fire.apply(this, [
+              'fireball', 
+              origin2,
+              target2
+            ]
+          )          
+          if(
+            target2.userData && 
+            target2.userData.id && 
+            target2.userData.type === 'player'
+          ) {
+            this.socket.send.apply(this, [{
+              target: target2.userData.id,
+              origin: origin2,
+              type: "icelance",
+            }]);
+          }
+        }
     }
   })
 };
@@ -242,7 +276,6 @@ Keyboard.prototype.update = function(delta) {
   if (moveRight) {
     pitchObject.rotation.z += -0.2
     this.avatar.children[1].rotateZ(-0.2)
-    console.log('moveRight)',moveRight)
     
   }
 

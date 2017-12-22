@@ -18,7 +18,7 @@ app.use(require('cookie-parser')())
 app.use((req, res, next) => {
   const { token } = req.cookies
 
-  if (!token && !isDev) {
+  if (!token || isDev) {
     res.cookie(
       'token',
       crypto.randomBytes(12).toString('hex'),
@@ -38,7 +38,7 @@ const { generateTerrain } = require('fractal-terrain-generator')
 let heightmap = []
 
 function createHeightmap() {
-  heightmap = generateTerrain(100, 100, 0.4).map(row => 
+  heightmap = generateTerrain(100, 100, 0.5).map(row => 
     row.map(z => z + 2)
   )
 }
@@ -69,7 +69,6 @@ wss.broadcast = function broadcast(data) {
 wss.on('connection', function connection(ws, req) {
   const { token } = cookie.parse(req.headers.cookie)
   //sockets[token] = ws
-  console.log('token', token)
   ws.isAlive = true
   ws.on('pong', heartbeat)
   ws.on('message', function incoming(data) {

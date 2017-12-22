@@ -30,7 +30,7 @@
   "scripts": {
     "package": "tsc -d",
     "lint": "tslint -p . -t verbose",
-    "dev": "node --harmony server",
+    "watch": "webpack --watch",
     "start": "node --harmony server",
     "build": "webpack -p --define process.env.NODE_ENV=production"
   },

@@ -15,21 +15,18 @@ import * as uuid from 'uuid/v4'
 Physics.prototype.spawnTrees = function() {
   let { terrain, scene } = this;
   let register = this.base.register.bind(this)
-  let getRandomPointOnPerimeter = this.base.getRandomPointOnPerimeter.bind(this)
-
+  let tree = Tree()
   const spawn = () => {
-    let anchor = getRandomPointOnPerimeter()
-
-    for(let i = 0; i < 10; i++) {
-      let tree = Tree()
+    let clumpSize = Math.floor(Math.random() * 20)
+    let clumpCount = Math.floor(Math.random() * 20)
+    let placements = this.base.generatePlacements.apply(this, [clumpCount, clumpSize])
+    for(let i = 0; i < placements.length; i++) {
+      tree = tree.clone()
       let scale = Math.random() * (1 - 0.5) + 0.5;
-      
-      anchor = anchor.add(new THREE.Vector3(0, 0.5, 0))
-      tree.rotation.set(Math.PI / 2, Math.PI / 2, 0)
       tree.scale.set(scale, scale, scale)
-      tree.position.copy(anchor)
-
-      register(tree, null, 'trees', spawn)
+      tree.position.copy(placements[i])
+      register(tree, null)
+       
     }
   }
 
@@ -40,20 +37,21 @@ Physics.prototype.spawnTrees = function() {
 Physics.prototype.addHeightfield = function() {
   let matrix = []
   let vert = this.tiles[0].geometry.vertices
-
+  let segments = Math.sqrt(vert.length)
+  let { worldSize } = this._terrain
   let index = 0;
   
-  for(let x = 0; x < Math.sqrt(vert.length); x++) {
+  for(let x = 0; x < segments; x++) {
     matrix[x] = []
 
-    for(let y = 0; y < Math.sqrt(vert.length); y++) {
+    for(let y = 0; y < segments; y++) {
       matrix[x][y] = vert[index].z;
       index++
     }
   } 
 
   let heightfieldShape = new CANNON.Heightfield(matrix, {
-    elementSize: 1 // Distance between the data points in X and Y directions
+    elementSize: worldSize/segments
   })  
 
   let heightfieldBody = new CANNON.Body({
@@ -65,9 +63,8 @@ Physics.prototype.addHeightfield = function() {
   let axis = new CANNON.Vec3(0, 0, 1)
   heightfieldBody.quaternion.setFromAxisAngle(axis, angle)
 
-  heightfieldBody.position.set(-50, 50, 0)
+  heightfieldBody.position.set(-1 * worldSize/2, worldSize/2, 0)
   heightfieldBody.addShape(heightfieldShape)
-  
   this.cannon.world.addBody(heightfieldBody)
  
   return heightfieldBody
@@ -142,21 +139,23 @@ Physics.prototype.createPlayerSphere = function () {
 }
 
 Physics.prototype.spawnBoxes = function() {
+  const s = () => Math.random() > 0.5 ? -1 : 1;
   const spawn = () => {
-    let anchor = this.base.getRandomPointOnPerimeter.apply(this)
-    let geometry = new THREE.BoxGeometry(2, 2, 2)
-    let { vertices } = geometry;
-
-    vertices.forEach(vector => {
-      anchor.add(vector)
-      //let box = Box(this._assets.textures['crate'])
+    let placements = this.base.generatePlacements.apply(this, [20, 2])
+    for(let i = 0; i < placements.length; i++) {
       let box = this.sprite.box(this._assets.textures['crate'])
-      console.log('box', box)
-      // CANNON
-      box.body.position.copy(anchor)
-      this.base.register.apply(this, [box.mesh, box.body, 'boxes', spawn])
-    })
+      box.body.position.copy(placements[i])
+      this.base.register.apply(this, [box.mesh, box.body])
+    }
   }
+
+  let placements = this.base.generatePlacements.apply(this, [20, 2])
+  for(let i = 0; i < placements.length; i++) {
+    let rock = this.sprite.rock()
+    rock.mesh.position.copy(placements[i])
+    this.base.register.apply(this, [rock.mesh, null])
+  }
+
 
   return spawn()
 }

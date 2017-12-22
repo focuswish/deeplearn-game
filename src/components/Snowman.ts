@@ -72,9 +72,10 @@ export default function Avatar(id, userName, font) {
     new THREE.MeshBasicMaterial({opacity: 0.4, transparent: true})
   )
   
-  snowmanHalo.name = 'snowman/halo'
-  snowmanHalo.visible = false;
-  middleSnowman.add(snowmanHalo)
+  //snowmanHalo.name = 'snowman/halo'
+  //snowmanHalo.visible = false;
+  //snowmanHalo.geometry.translate(0,0,1)
+  //middleSnowman.add(snowmanHalo)
 
   let twig1 = Wood(0.1, 2, 0.1)
   twig1.scale.set(0.4, 0.4, 0.4)

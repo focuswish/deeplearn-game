@@ -20,7 +20,12 @@ Assets.prototype.loadTextures = async function() {
     loader.load('/assets/' + name, texture => resolve(texture))
   })
 
-  const images = ['crate.jpg', 'gradient2.png', 'gradient1.png']
+  const images = [
+    'crate.jpg', 
+    'gradient2.png', 
+    'gradient1.png',
+    'winter.png'
+  ]
 
   const textures : any = await Promise.all(
     images.map(image => 
@@ -40,29 +45,31 @@ Assets.prototype.loadTextures = async function() {
   return this;
 }
 
-Assets.prototype.loadTerrain = async function() {
-  this.terrain.geometry = new THREE.Geometry();    
-  
+Assets.prototype.loadTerrain = async function() {  
   let heightmap = await fetch('/heightmap')
     .then(resp => resp.json())
     
-  let terrain = Terrain({
+  let terrain = new Terrain({
     position: [0, 0, 0],
     color: 0x7cfc00,
-    altitude: heightmap
+    heightmap,
+    worldSize: 100,
+    segments: 100
   })
-  
-  this.tiles.push(terrain)
-  this.scene.add(terrain)
-  this.terrain.geometry.vertices = this.terrain.geometry.vertices.concat(
-    terrain.geometry.vertices
+
+  this._terrain = terrain.generate()
+  this._terrain.geometry = new THREE.Geometry();  
+  let { mesh } = this._terrain;
+  this.tiles.push(mesh)
+  this.scene.add(mesh)
+  this._terrain.geometry.vertices = this._terrain.geometry.vertices.concat(
+    terrain.mesh.geometry.vertices
   )
   
   return this;
 }
 
 Assets.prototype.load = function() {
-  console.log('Assets.load', this)
   return Promise.all([
     this.assets.loadFonts.apply(this),
     this.assets.loadTextures.apply(this),

@@ -225,9 +225,7 @@ function Base() {
     let t = Triangle().generate().calc()
     let {x1, y1, x2, y2, theta} = t;
     let predicted = ctx.predict([x1, y1, x2, y2]);
-    
-    console.log(t)
-    console.log('predicted', predicted)
+  
 
     //if(predicted !== 0) {
     //  ctx.save()

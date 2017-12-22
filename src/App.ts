@@ -1,6 +1,5 @@
 //scene and camera setup
 import * as THREE from 'three'
-import * as fractal from 'fractal-terrain-generator'
 import { sample, findIndex, flatten, chunk, take, tail } from 'lodash'
 import * as CANNON from 'cannon'
 import { Physics } from './Physics'
@@ -11,10 +10,8 @@ import {
   generateTerrainObjects,
   generateCampfire
 } from './components/objects'
-import Terrain from './components/Terrain'
 import Snowman from './components/Snowman'
 import Tree from './components/Tree';
-//import PointerLockControls from './util/PointerLockControls'
 import * as uuid from 'uuid/v4'
 import { randomArrayInRange } from 'deeplearn/dist/test_util';
 import {
@@ -37,6 +34,8 @@ World.prototype.physics = Object.create(Physics.prototype)
 World.prototype.base = Object.create(Base.prototype)
 
 World.prototype.light = function() {
+  this.scene.background = this._assets.textures['winter']
+
   let light = new THREE.HemisphereLight(0xfffafa,0x000000, .7)
   let sun = new THREE.DirectionalLight( 0xcdc1c5, 0.9);
   sun.position.set(-10, -10, 10)
@@ -50,8 +49,10 @@ World.prototype.light = function() {
 
 World.prototype.intro = async function() {
   let assets = await this.assets.load.apply(this)
-
-  let body = document.querySelector('body')
+  //if(document.cookie) {
+  //  this.userName = input.value
+  //  return Promise.resolve()
+  //} 
   this.UI.welcomeScreen()
 
   let btn = document.querySelector('button')
@@ -94,9 +95,9 @@ World.prototype.update = function() {
 
     this.cannon.world.step(timeStep, timeSinceLastCall, maxSubSteps);
     
-    this.base.sync.apply(this, ['snowballs'])
-    this.base.sync.apply(this, ['boxes'])
-    this.base.sync.apply(this, ['icelances'])
+    //this.base.sync.apply(this, ['snowballs'])
+    this.base.sync.apply(this, ['box'])
+    //this.base.sync.apply(this, ['icelances'])
      
     let players = Object.keys(this.data)
   
@@ -158,11 +159,16 @@ World.prototype.init = function() {
   this.createHalo()
   this.animate()
 
-  //var loader = new THREE.JSONLoader();
-  //loader.load( 'monster.json', function ( geometry, materials ) {
-  //    var mesh = new THREE.Mesh( geometry, new THREE.MeshFaceMaterial( materials ) );
-  //    scene.add( mesh );
-  //});
+  var loader = new THREE.ObjectLoader()
+  //loader.load( '/assets/monster/monster.json', function (geometry, materials) {
+  //  console.log(geometry)
+  //  console.log(materials)
+  //  var mesh = new THREE.Mesh( 
+  //    geometry, 
+  //    new THREE.MeshFaceMaterial( materials ))
+  //  this.scene.add( mesh );
+  //})
+
   this.keyboard.handleKeyDown.apply(this)
   this.socket.handleMessage.apply(this)
 }
@@ -212,7 +218,7 @@ World.prototype.createAvatar = function() {
   
   this.UI.init(avatar, this._assets.textures['gradient1'])
   this.weapon.createIcon.apply(this, ['icelance'])
-  this.weapon.createIcon.apply(this, ['icelance'])
+  this.weapon.createIcon.apply(this, ['fireball'])
   
   this.physics.init.apply(this)
 
@@ -229,7 +235,6 @@ declare global {
 }
 
 let world = new World()
-console.log(world)
 world.intro().then(() => {
   world.light().createAvatar().init()
 })

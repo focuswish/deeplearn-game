@@ -1,6 +1,6 @@
 import * as CANNON from 'cannon';
 import * as THREE from 'three';
-
+import { sample } from 'lodash'
 export default function Weapon () {}
 
 Weapon.prototype.setTargetMaterial = function(targetMesh) {
@@ -20,7 +20,6 @@ Weapon.prototype.setTargetMaterial = function(targetMesh) {
   
   let material = getMaterial(targetMesh)
   material.color.set( 0xa5f2f3 )
-  console.log(material)
 }
 
 Weapon.prototype.getParameters = function(originPosition) {
@@ -60,8 +59,9 @@ Weapon.prototype.postRender = function() {
     } = this._weapon;
 
     let dist = projectile.position.distanceTo(targetMeshPosition)
-
+   
     if (dist < 0.1) {
+      
       this.scene.remove(projectile)
       this.weapon.setTargetMaterial.apply(this, [targetMesh])
       targetMesh.userData.health += -10;
@@ -79,17 +79,23 @@ Weapon.prototype.postRender = function() {
             body.id === targetMesh.userData.body
           )
           if(body) {
-            body.applyImpulse(
-              distanceToTarget,
-              body.position
-            )
+            //body.applyImpulse(
+            //  distanceToTarget,
+            //  body.position
+            //)
           }
         }        
       }
     } else {
       let factor = (1/dist)/2 > 1 ? 1 : (1/dist)/2
       
-      projectile.position.lerp(targetMeshPosition, factor);
+      projectile.position.lerp(
+        targetMeshPosition, 
+        factor * projectile.userData.rate
+      )
+      if(projectile.name === 'fireball') {
+        projectile.scale.lerp(new THREE.Vector3(10,10,10), 0.01 * factor)
+      }
     }
   }
 }
@@ -106,8 +112,41 @@ Weapon.prototype.icelance = function () {
   icelance.castShadow = true;
   icelance.receiveShadow = true;
   icelance.name = 'icelance'
-
+  icelance.userData.rate = 1;
   return icelance;
+}
+
+
+Weapon.prototype.fireball = function () {
+
+  const COLORS = [
+    new THREE.Color(0xFF7F50),
+    new THREE.Color(0xFF6347),
+    new THREE.Color(0xFF4500),	
+    new THREE.Color(0xFFD700),
+    new THREE.Color(0xFFA500)
+  ]
+  let orange = new THREE.Color(0xFFA500)
+  let red = new THREE.Color(0xff0000)
+  let geometry = new THREE.DodecahedronGeometry(0.3, 1)
+
+  for (var i = 0; i < geometry.faces.length; i ++ ) {
+    geometry.faces[i].color = orange.lerp(red, (1/geometry.faces.length))
+  }
+    
+  let material = new THREE.MeshBasicMaterial({
+    vertexColors: THREE.FaceColors,
+    opacity: 0.9,
+    transparent: true
+  })
+
+  let fireball = new THREE.Mesh(geometry, material)
+  fireball.castShadow = true;
+  fireball.receiveShadow = true;
+  fireball.name = 'fireball'
+  fireball.userData.rate = 0.3;
+  console.log(fireball)
+  return fireball;
 }
 
 Weapon.prototype.fire = function(label, originPosition, targetMesh) {

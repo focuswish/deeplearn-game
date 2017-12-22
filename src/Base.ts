@@ -1,26 +1,34 @@
 import * as CANNON from 'cannon'
 import * as THREE from 'three'
-import { sample, flatten, findIndex, has, isEmpty } from 'lodash'
+import { sample, flatten, findIndex, has, isEmpty, shuffle } from 'lodash'
 import Sprite from './Sprite'
 
 export default function Base() {}
 
-Base.prototype.getRandomPointOnPerimeter = function() {
-  let avatarPerimeter = this.scene.getObjectByName('snowman/halo', true);
+Base.prototype.generatePlacements = function (clumpCount = 5, clumpSize = 5) {
+  let x = clumpCount;
+  let y = clumpSize;
+  let matrix = []
+  const sign = () => Math.random() > 0.5 ? -1 : 1
+  const rand = () => Math.random() * sign() 
+  const randomAdjustment = () => new THREE.Vector3(rand(), rand(), 0)
 
-  if(!avatarPerimeter) {
-    return new THREE.Vector3(0, 0, 1)
+  for(let j = 0; j < x; j++) {
+    let anchor = this.base.getRandomPointOnPerimeter.apply(this)    
+    for(let i = 0; i < y; i++) {
+      anchor = anchor.add(randomAdjustment()).clone()    
+      matrix.push(anchor)
+    }
   }
+  console.log(matrix)
+  return matrix;
+}
 
-  let pointOnPerimeter = sample(avatarPerimeter.geometry.vertices).clone()
-  let vector = avatarPerimeter
-    .getWorldPosition()
-    .add(pointOnPerimeter)
-    
-
-  vector.setZ(this.base.getZ.apply(this, [vector.x, vector.y]))
-
-  return vector
+Base.prototype.getRandomPointOnPerimeter = function() {
+  return shuffle(this._terrain.mesh.geometry.vertices)
+    .find(v => 
+      v.distanceTo(this.avatar.position) < 20
+    ).clone()
 }
 
 
@@ -158,12 +166,12 @@ Base.prototype.tick = function () {
     type: 'player',
   }])
   
-  if(this.scene.children.length > 100) {
+  if(this.scene.children.length > 200) {
     this.base.cullDistantObjects.apply(this)
   }
 
   let distantMeshes = this._base.nearby.filter(mesh => 
-    mesh.userData.distance && mesh.userData.distance > 30
+    mesh.userData.distance && mesh.userData.distance > 50
   )
 
   if(distantMeshes) {
@@ -172,7 +180,8 @@ Base.prototype.tick = function () {
     })
   }
 
-  if(!this._base.nearby || this._base.nearby.length < 20) {
+  if(!this._base.nearby || this._base.nearby.length < 100) {
+    console.log('respawning')
     this.physics.spawnBoxes.apply(this)
     this.physics.spawnTrees.apply(this)
   }
@@ -233,7 +242,7 @@ Base.prototype.getHeroTargetMesh = function() {
 }
 
 Base.prototype.getZ = function(x, y) {
-  let { terrain: { geometry: { vertices } } } = this;
+  let { _terrain: { mesh: { geometry: { vertices } } } } = this;
     
   let index = findIndex(vertices, { 
     x: Math.round(x),

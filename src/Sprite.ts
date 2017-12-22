@@ -10,7 +10,8 @@ Sprite.prototype.create = function() {
     this.geometry, 
     this.material
   )
-  this.mesh.name = name
+  this.mesh.geometry.translate(0, 0, 0.25)
+  this.mesh.name = this.props.name
   this.mesh.castShadow = true;
   this.mesh.receiveShadow = true;
   this.mesh.userData = {
@@ -18,18 +19,6 @@ Sprite.prototype.create = function() {
     selectable: true,
     ...this.props,
   }  
-}
-
-Sprite.prototype.set = function(props = {}) {
-  this.mesh.userData = {
-    ...this.mesh.userData,
-    selectable: true,
-    health: 100,
-    maxHealth: 100,
-    ...props,
-  }
-
-  return this;
 }
 
 Sprite.prototype.box = function(texture) {
@@ -59,4 +48,30 @@ Sprite.prototype.box = function(texture) {
   this.create()
 
   return this
+}
+
+Sprite.prototype.rock = function(radius = 0.2, detail = 0) {
+  let rock = {}
+
+  let geometry = new THREE.DodecahedronGeometry(radius, detail)
+
+  let material = new THREE.MeshLambertMaterial({ 
+    color: 0x999999,
+    vertexColors: THREE.VertexColors 
+  }) 
+
+  Sprite.apply(this, [{
+    geometry,
+    material,
+    props: {
+      name: 'rock',
+      health: 20,
+      maxHealth: 20,
+    }
+  }])
+  
+  this.create()
+
+  return this;
+
 }

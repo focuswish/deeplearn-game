@@ -76,7 +76,6 @@ UI.prototype.appendStylesheet = function() {
     let styles = `.ui-hero-ability-wrapper:nth-of-type(${i + 1}):before { content: "${i + 1}"; position: absolute; font-size: 8px; padding: 2px; }`
     sheet.insertRule(styles, i);
   }
-  console.log(sheet)
 }
 
 UI.prototype.init = function(avatar, gradient) {
@@ -237,7 +236,7 @@ UI.prototype.target = function(mesh) {
   }
       
   if(mesh.userData.health) {
-    this.div.childNodes[0].innerHTML = `${mesh.userData.health}/100`;
+    this.div.childNodes[0].innerHTML = `${mesh.userData.health}/${mesh.userData.maxHealth || 100}`;
   }
 
   this.div.style.backgroundImage = `url(${url})`
@@ -263,7 +262,7 @@ UI.prototype.update = function(mesh) {
     if(mesh.userData.id === this.avatar.userData.id) {
       this.bar.childNodes[0].style.width = `${mesh.userData.health}%`
     } else {
-      this.div.childNodes[0].innerHTML = `${mesh.userData.health}/100`;      
+      this.div.childNodes[0].innerHTML = `${mesh.userData.health}/${mesh.userData.maxHealth || 100}`;      
     }
   }
 }

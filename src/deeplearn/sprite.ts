@@ -59,7 +59,6 @@ function Sprite(params = {}) {
 
   sprite.render = () => {
     if(sprite.canvas.getContext) {
-      console.log(sprite)
       sprite.context.drawImage(
         sprite.terrain,
         0,
@@ -203,14 +202,10 @@ function Sprite(params = {}) {
     })
 
     window.addEventListener('keyup', function(e) {
-      console.log('KEYUP')
-      console.log(e)
       if(keydown[e.code]) {
         keydown[e.code] = false
         momentum.clear()
       }
-      //console.log(e)
-      //register = momentum.friction(0.8).register;
     })
 
     return sprite;

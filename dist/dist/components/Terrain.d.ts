@@ -1,2 +1,2 @@
-declare function Terrain(params?: {}): any;
+declare function Terrain(params: any): void;
 export default Terrain;
