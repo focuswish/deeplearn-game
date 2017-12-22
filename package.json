@@ -1,7 +1,7 @@
 {
-  "name": "deeplearn-example",
+  "name": "nightshard",
   "version": "0.0.1",
-  "description": "Starter project for using deeplearn.js with TypeScript",
+  "description": "multiplayer game with web sockets, cannonJs and ThreeJs",
   "engines": {
     "node": "8.1.x"
   },

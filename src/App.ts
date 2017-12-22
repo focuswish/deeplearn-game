@@ -159,16 +159,6 @@ World.prototype.init = function() {
   this.createHalo()
   this.animate()
 
-  var loader = new THREE.ObjectLoader()
-  //loader.load( '/assets/monster/monster.json', function (geometry, materials) {
-  //  console.log(geometry)
-  //  console.log(materials)
-  //  var mesh = new THREE.Mesh( 
-  //    geometry, 
-  //    new THREE.MeshFaceMaterial( materials ))
-  //  this.scene.add( mesh );
-  //})
-
   this.keyboard.handleKeyDown.apply(this)
   this.socket.handleMessage.apply(this)
 }

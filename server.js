@@ -68,7 +68,6 @@ wss.broadcast = function broadcast(data) {
 
 wss.on('connection', function connection(ws, req) {
   const { token } = cookie.parse(req.headers.cookie)
-  //sockets[token] = ws
   ws.isAlive = true
   ws.on('pong', heartbeat)
   ws.on('message', function incoming(data) {
