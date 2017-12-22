@@ -2,7 +2,9 @@ import * as uuid from "uuid";
 import * as THREE from 'three'
 import * as CANNON from 'cannon'
 
-function Keyboard() {}
+function Keyboard(ctx = {}) {
+  Object.assign(this, ctx)
+}
 
 Keyboard.prototype.handleKeyDown = function() {
   let nearbyIndex = 0;
@@ -67,31 +69,33 @@ Keyboard.prototype.handleKeyDown = function() {
 };
 
 
-Keyboard.prototype.PointerLockControls = function (camera, cannonBody, avatar) {  
-  let jumpVelocity = 10;
+Keyboard.prototype.PointerLockControls = function () {  
+  let cannonBody = this.data[this.avatar.userData.id].body
+  this._keyboard.cannonBody = cannonBody
+  this._keyboard.jumpVelocity = 10;
+  this._keyboard.canJump = false;
   let scope = this;
   
-  let pitchObject = new THREE.Object3D()
-  pitchObject.add(camera)
+  this._keyboard.cannonBody = cannonBody;  
+  this._keyboard.pitchObject = new THREE.Object3D()
+  this._keyboard.pitchObject.add(this.camera)
   
-  let yawObject = new THREE.Object3D();
-  yawObject.position.z = 2;
+  this._keyboard.yawObject = new THREE.Object3D();
+  this._keyboard.yawObject.position.z = 2;
 
-  yawObject.add(pitchObject)
+  this._keyboard.yawObject.add(this._keyboard.pitchObject)
   
-  let quat = new THREE.Quaternion();
-  
-  let moveForward = false;
-  let moveBackward = false;
-  let moveLeft = false;
-  let moveRight = false;
-  
-  let canJump = false;
+  this._keyboard.quat = new THREE.Quaternion();
+
+  this._keyboard.moveForward = false;
+  this._keyboard.moveBackward = false;
+  this._keyboard.moveLeft = false;
+  this._keyboard.moveRight = false;  
   
   let contactNormal = new CANNON.Vec3();
   let upAxis = new CANNON.Vec3(0,0,1);
       
-  cannonBody.addEventListener('collide', function(e){
+  cannonBody.addEventListener('collide', (e) => {
     var contact = e.contact;
   
     if(contact.bi.id == cannonBody.id) {
@@ -101,137 +105,160 @@ Keyboard.prototype.PointerLockControls = function (camera, cannonBody, avatar) {
     } 
 
     if(contactNormal.dot(upAxis) > 0.5) {
-      canJump = true;
+      this._keyboard.canJump = true;
     }
-
   })
   
   let { velocity } = cannonBody
   let PI_2 = Math.PI / 2;
   
-  const onMouseMove = function (event) {
-    if ( scope.enabled === false ) return;
+  const onMouseMove = (event) => {
+    if ( this._keyboard.enabled === false ) return;
 
     var movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
     var movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
 
-    yawObject.rotation.z -= movementX * 0.002;
-    pitchObject.rotation.x -= movementY * 0.002;
+    this._keyboard.yawObject.rotation.z -= movementX * 0.002;
+    this._keyboard.pitchObject.rotation.x -= movementY * 0.002;
 
-    pitchObject.rotation.x = Math.max( - PI_2, Math.min( PI_2, pitchObject.rotation.x ) );
+    this._keyboard.pitchObject.rotation.x = Math.max( 
+      - PI_2, 
+      Math.min( 
+        PI_2, 
+        this._keyboard.pitchObject.rotation.x 
+      ) 
+    )
   }
   
-  const onKeyDown = function (event) {
+  const onKeyDown = (event) => {
     if(cannonBody.sleepState === 2) cannonBody.wakeUp()
           
     switch ( event.keyCode ) {
       case 38: // up
       case 87: // w
-        moveForward = true;
+        this._keyboard.moveForward = true;
         break;
   
       case 37: // left
       case 65: // a
-        moveLeft = true; 
+        this._keyboard.moveLeft = true; 
         break;
   
       case 40: // down
       case 83: // s
-        moveBackward = true;
+        this._keyboard.moveBackward = true;
         break;
   
       case 39: // right
       case 68: // d
-        moveRight = true;
+        this._keyboard.moveRight = true;
         break;
-  
+
       case 32: // space
-        if (canJump === true) {
-          velocity.z = jumpVelocity;
+        if (this._keyboard.canJump === true) {
+          velocity.z = this._keyboard.jumpVelocity;
         }
-        canJump = false;
+        this._keyboard.canJump = false;
         break;
     }
   };
   
-  const onKeyUp = function ( event ) {    
+  const onKeyUp = ( event ) => {    
     switch( event.keyCode ) {
       case 38: // up
       case 87: // w
-        moveForward = false;
+        this._keyboard.moveForward = false;
         break;
   
       case 37: // left
       case 65: // a
-        moveLeft = false;
+        this._keyboard.moveLeft = false;
         break;
   
       case 40: // down
       case 83: // a
-        moveBackward = false;
+        this._keyboard.moveBackward = false;
         break;
   
       case 39: // right
       case 68: // d
-        moveRight = false;
+        this._keyboard.moveRight = false;
         break;
-    };
-  };
-  
-  document.addEventListener( 'mousemove', onMouseMove, false );
-  document.addEventListener( 'keydown', onKeyDown, false );
-  document.addEventListener( 'keyup', onKeyUp, false );
-  
-  this.enabled = false;
-  
-  this.getObject = function () {
-    return yawObject;
-  };
-  
-  this.getDirection = function(targetVec){
-    targetVec.set(0,0,-1);
-    quat.multiplyVector3(targetVec);
+    }
   }
   
-      // Moves the camera to the Cannon.js object position and adds velocity to the object if the run key is down
-  var inputVelocity = new THREE.Vector3();
-  var euler = new THREE.Euler();
-
-  this.update = function (delta) {
-    //if ( scope.enabled === false ) return;
+  document.addEventListener( 'mousemove', onMouseMove.bind(this), false );
+  document.addEventListener( 'keydown', onKeyDown.bind(this), false );
+  document.addEventListener( 'keyup', onKeyUp.bind(this), false );
   
-    delta *= 0.1;    
-    inputVelocity.set(0,0,0);
+  this._keyboard.enabled = false; 
+  this._keyboard.inputVelocity = new THREE.Vector3();
+  this._keyboard.euler = new THREE.Euler();
+}
 
-    let direction = camera.getWorldDirection();
-          
-    if (moveForward) inputVelocity = direction.multiplyScalar(0.5)
+Keyboard.prototype.getObject = function() {
+  return this._keyboard.yawObject;
+}
+
+Keyboard.prototype.getDirection = function(targetVec) {
+  targetVec.set(0, 0, -1)
+  this._keyboard.quat.multiplyVector3(targetVec)
+}
+
+Keyboard.prototype.update = function(delta) {
+
+  let {
+    inputVelocity,
+    moveBackward,
+    moveForward,
+    moveLeft,
+    moveRight,
+    pitchObject,
+    yawObject,
+    euler,
+    quat
+  } = this._keyboard
+
+  let { velocity } = this._keyboard.cannonBody;
+  
+  delta *= 0.1;    
+  inputVelocity.set(0,0,0);
+
+  let direction = this.camera.getWorldDirection();
+        
+  if (moveForward) {
+    inputVelocity = direction.multiplyScalar(0.5)
+  }
+  
+  if (moveBackward) {
+    inputVelocity = direction.negate().multiplyScalar(0.5)
+  }
     
-    if (moveBackward) inputVelocity = direction.negate().multiplyScalar(0.5)
-      
-    if (moveLeft) {
-      pitchObject.rotation.z += 0.2
-      avatar.children[1].rotateZ(0.2)
-    }
+  if (moveLeft) {
+    pitchObject.rotation.z += 0.2
+    this.avatar.children[1].rotateZ(0.2)
+  }
 
-    if (moveRight) {
-      pitchObject.rotation.z += -0.2
-      avatar.children[1].rotateZ(-0.2)
-    }
-  
-    // Convert velocity to world coordinates
-    euler.x = pitchObject.rotation.x;
-    euler.z = yawObject.rotation.z;
-    euler.order = "XYZ";
-    quat.setFromEuler(euler);
-    inputVelocity.applyQuaternion(quat);
-  
-    // Add to the object
-    velocity.x += inputVelocity.x;
-    velocity.y += inputVelocity.y;
-          
-    yawObject.position.copy(cannonBody.position);
-  };
-};
+  if (moveRight) {
+    pitchObject.rotation.z += -0.2
+    this.avatar.children[1].rotateZ(-0.2)
+    console.log('moveRight)',moveRight)
+    
+  }
+
+  euler.x = pitchObject.rotation.x
+  euler.z = yawObject.rotation.z
+  euler.order = 'XYZ'
+  quat.setFromEuler(euler)
+  inputVelocity.applyQuaternion(quat)
+
+  velocity.x += inputVelocity.x;
+  velocity.y += inputVelocity.y;
+        
+  this._keyboard.yawObject.position.copy(
+    this._keyboard.cannonBody.position
+  )
+}
+
 
 export default Keyboard;

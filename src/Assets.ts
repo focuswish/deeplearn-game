@@ -17,7 +17,7 @@ Assets.prototype.loadFonts = async function() {
 Assets.prototype.loadTextures = async function() {
   const loader = new THREE.TextureLoader()
   const load : any = (name) => new Promise((resolve, reject) => {
-    loader.load(BASE_ASSET_URL + name, texture => resolve(texture))
+    loader.load('/assets/' + name, texture => resolve(texture))
   })
 
   const images = ['crate.jpg', 'gradient2.png', 'gradient1.png']

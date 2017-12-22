@@ -10,13 +10,15 @@ const wss = new WebSocket.Server({ server })
 const crypto = require('crypto')
 
 const PORT = process.env.PORT || 3000;
+const isDev = process.env.NODE_ENV !== 'production'
+
 const cookie = require('cookie')
 
 app.use(require('cookie-parser')())
 app.use((req, res, next) => {
   const { token } = req.cookies
 
-  if (!token) {
+  if (!token && !isDev) {
     res.cookie(
       'token',
       crypto.randomBytes(12).toString('hex'),
@@ -28,10 +30,8 @@ app.use((req, res, next) => {
 })
 
 app.use('/', express.static('dist'));
+app.use('/assets', express.static('src/assets'));
 app.use(bodyParser.json())
-
-
-
 
 const { generateTerrain } = require('fractal-terrain-generator')
 

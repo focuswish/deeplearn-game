@@ -14,7 +14,7 @@ import {
 import Terrain from './components/Terrain'
 import Snowman from './components/Snowman'
 import Tree from './components/Tree';
-import PointerLockControls from './util/PointerLockControls'
+//import PointerLockControls from './util/PointerLockControls'
 import * as uuid from 'uuid/v4'
 import { randomArrayInRange } from 'deeplearn/dist/test_util';
 import {
@@ -52,7 +52,6 @@ World.prototype.intro = async function() {
   let assets = await this.assets.load.apply(this)
 
   let body = document.querySelector('body')
-  //body.style.backgroundImage = 'linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%)'
   this.UI.welcomeScreen()
 
   let btn = document.querySelector('button')
@@ -106,7 +105,6 @@ World.prototype.update = function() {
       _heroTarget.position && 
       heroTarget !== _heroTarget     
     ) {
-      console.log(_heroTarget)
       heroTarget = _heroTarget;
       let { position: { x, y } } = heroTarget
       let z = this.base.getZ.apply(this, [x, y])
@@ -126,7 +124,7 @@ World.prototype.update = function() {
       })
     }
   
-    this.controls.update(timeSinceLastCall)
+    this.keyboard.update.apply(this, [timeSinceLastCall])
     this.base.update.apply(this)
     
     this.renderer.render(
@@ -145,7 +143,7 @@ World.prototype.update = function() {
 World.prototype.init = function() {
   
   let pointerlockchange = (event) => {
-    this.controls.enabled = true;
+    this._keyboard.enabled = true;
   }
   
   window.addEventListener('resize', this.onWindowResize.bind(this), false)
@@ -153,20 +151,20 @@ World.prototype.init = function() {
   document.addEventListener( 'mozpointerlockchange', pointerlockchange, false );
   document.addEventListener( 'webkitpointerlockchange', pointerlockchange, false );   
 
-  this.controls = new PointerLockControls(
-    this.camera, 
-    this.data[this.avatar.userData.id].body, 
-    this.avatar
-  );
+  this.keyboard.PointerLockControls.apply(this)
 
-  this.scene.add(this.controls.getObject())
+  this.scene.add(this.keyboard.getObject.apply(this))
   this.render = this.update()
   this.createHalo()
   this.animate()
 
+  //var loader = new THREE.JSONLoader();
+  //loader.load( 'monster.json', function ( geometry, materials ) {
+  //    var mesh = new THREE.Mesh( geometry, new THREE.MeshFaceMaterial( materials ) );
+  //    scene.add( mesh );
+  //});
   this.keyboard.handleKeyDown.apply(this)
   this.socket.handleMessage.apply(this)
- 
 }
 
 World.prototype.animate = function() {

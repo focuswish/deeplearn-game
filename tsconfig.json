@@ -5,9 +5,9 @@
       "sourceMap": true,
       "preserveConstEnums": true,
       "declaration": true,
-      "target": "es6",
+      "target": "es5",
       "lib": ["es2015", "dom"],
       "outDir": "./dist",
-      "rootDir": "src"      
+      "rootDir": "src"
   }
 }

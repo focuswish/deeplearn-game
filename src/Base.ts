@@ -146,16 +146,15 @@ Base.prototype.cullDistantObjects = function (count = 10) {
 }
 
 Base.prototype.tick = function () {
-  console.log('tick')
   let { frustum } = this._base;
     
   this.base.getProximateMeshes.apply(this)
   let hero = this.scene.getObjectById(this.avatar.id)
+  let body = this.base.getCannonBodyById.apply(this, [hero.userData.body])
 
   this.socket.send.apply(this, [{
     position: hero.position,
-    velocity: hero.velocity,
-    timestamp: new Date().getTime() / 1000,
+    velocity: body.velocity,
     type: 'player',
   }])
   

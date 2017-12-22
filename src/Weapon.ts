@@ -3,6 +3,25 @@ import * as THREE from 'three';
 
 export default function Weapon () {}
 
+Weapon.prototype.setTargetMaterial = function(targetMesh) {
+  const getMaterial = (mesh) => {
+    if(mesh.material) return mesh.material
+    if(mesh.children && mesh.children.length > 0) {
+      let material = undefined;
+      let i = 0;
+      do {
+        material = getMaterial(mesh.children[i])
+        i++
+      } while (material === undefined && i < mesh.children.length)
+      return material;
+    }
+    return undefined;
+  }
+  
+  let material = getMaterial(targetMesh)
+  material.color.set( 0xa5f2f3 )
+  console.log(material)
+}
 
 Weapon.prototype.getParameters = function(originPosition) {
   let originMeshPosition = new THREE.Vector3(
@@ -44,7 +63,7 @@ Weapon.prototype.postRender = function() {
 
     if (dist < 0.1) {
       this.scene.remove(projectile)
-
+      this.weapon.setTargetMaterial.apply(this, [targetMesh])
       targetMesh.userData.health += -10;
 
       if (targetMesh.userData.health < 0) {

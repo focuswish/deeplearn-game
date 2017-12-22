@@ -22,13 +22,10 @@
     "ws": "^3.3.2"
   },
   "devDependencies": {
-    "browserify": "^14.5.0",
-    "mkdirp": "~0.5.1",
-    "tsify": "~3.0.3",
+    "ts-loader": "^3.2.0",
     "tslint": "~5.8.0",
-    "typescript": "~2.6.1",
-    "uglifyjs": "~2.4.11",
-    "watchify": "~3.9.0"
+    "typescript": "^2.6.2",
+    "webpack": "^3.10.0"
   },
   "scripts": {
     "prep": "yarn && mkdirp dist",
@@ -38,7 +35,8 @@
     "lint": "tslint -p . -t verbose",
     "deploy": "yarn build && uglifyjs dist/bundle.js -c -m -o dist/bundle.min.js",
     "dev": "node --harmony server",
-    "start": "node --harmony server"
+    "start": "node --harmony server",
+    "wp": "webpack -p --define process.env.NODE_ENV=production"
   },
   "license": "Apache-2.0"
 }

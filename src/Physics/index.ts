@@ -144,13 +144,14 @@ Physics.prototype.createPlayerSphere = function () {
 Physics.prototype.spawnBoxes = function() {
   const spawn = () => {
     let anchor = this.base.getRandomPointOnPerimeter.apply(this)
-    let geometry = new THREE.BoxGeometry(1, 1, 1)
+    let geometry = new THREE.BoxGeometry(2, 2, 2)
     let { vertices } = geometry;
 
     vertices.forEach(vector => {
       anchor.add(vector)
-      let box = Box(this._assets.textures['crate'])
-      
+      //let box = Box(this._assets.textures['crate'])
+      let box = this.sprite.box(this._assets.textures['crate'])
+      console.log('box', box)
       // CANNON
       box.body.position.copy(anchor)
       this.base.register.apply(this, [box.mesh, box.body, 'boxes', spawn])
